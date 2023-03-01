@@ -1,0 +1,37 @@
+<?php try {
+    Bitrix\Main\Loader::registerAutoLoadClasses(null, [
+        'Api\Telegram' => '/local/php_interface/lib/Api/Telegram.php',
+        'Api\Sender' => '/local/php_interface/lib/Api/Sender.php',
+        'Settings\Common' => '/local/php_interface/lib/Settings/Common.php',
+        'Helpers\ArrayHelper' => '/local/php_interface/lib/Helpers/ArrayHelper.php',
+        'Helpers\LogHelper' => '/local/php_interface/lib/Helpers/LogHelper.php',
+        'Helpers\StringHelper' => '/local/php_interface/lib/Helpers/StringHelper.php',
+        'Models\ElementModel' => '/local/php_interface/lib/Models/ElementModel.php',
+        'Models\Staff' => '/local/php_interface/lib/Models/Staff.php',
+        'Models\Crew' => '/local/php_interface/lib/Models/Crew.php',
+        'Models\CashRoom' => '/local/php_interface/lib/Models/CashRoom.php',
+        'Models\CashRoomDay' => '/local/php_interface/lib/Models/CashRoomDay.php',
+        'Models\Applications' => '/local/php_interface/lib/Models/Applications.php',
+        'Models\Order' => '/local/php_interface/lib/Models/Order.php',
+        'Processing\Manager\Actions' => '/local/php_interface/lib/Processing/Manager/Actions.php',
+        'Processing\Manager\Buttons' => '/local/php_interface/lib/Processing/Manager/Buttons.php',
+        'Processing\Manager\Markup' => '/local/php_interface/lib/Processing/Manager/Markup.php',
+        'Processing\Responsible\Actions' => '/local/php_interface/lib/Processing/Responsible/Actions.php',
+        'Processing\Responsible\Buttons' => '/local/php_interface/lib/Processing/Responsible/Buttons.php',
+        'Processing\Responsible\Markup' => '/local/php_interface/lib/Processing/Responsible/Markup.php',
+        'Processing\CollectorsResponsible\Actions' => '/local/php_interface/lib/Processing/CollectorsResponsible/Actions.php',
+        'Processing\CollectorsResponsible\Buttons' => '/local/php_interface/lib/Processing/CollectorsResponsible/Buttons.php',
+        'Processing\CollectorsResponsible\Markup' => '/local/php_interface/lib/Processing/CollectorsResponsible/Markup.php',
+        'Processing\CashRoomEmployee\Actions' => '/local/php_interface/lib/Processing/CashRoomEmployee/Actions.php',
+        'Processing\CashRoomEmployee\Buttons' => '/local/php_interface/lib/Processing/CashRoomEmployee/Buttons.php',
+        'Processing\CashRoomEmployee\Markup' => '/local/php_interface/lib/Processing/CashRoomEmployee/Markup.php',
+        'Processing\CashRoomSenior\Actions' => '/local/php_interface/lib/Processing/CashRoomSenior/Actions.php',
+        'Processing\CashRoomSenior\Buttons' => '/local/php_interface/lib/Processing/CashRoomSenior/Buttons.php',
+        'Processing\CashRoomSenior\Markup' => '/local/php_interface/lib/Processing/CashRoomSenior/Markup.php',
+        'Processing\Collector\Actions' => '/local/php_interface/lib/Processing/Collector/Actions.php',
+        'Processing\Collector\Buttons' => '/local/php_interface/lib/Processing/Collector/Buttons.php',
+        'Processing\Collector\Markup' => '/local/php_interface/lib/Processing/Collector/Markup.php',
+    ]);
+} catch (\Bitrix\Main\LoaderException $e) {
+
+}

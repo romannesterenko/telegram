@@ -1,0 +1,630 @@
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+API:            	Prompting final serialization...
+API:            	Done final serialization!
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+API:            	Prompting final serialization...
+API:            	Done final serialization!
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(52):    	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(52):    	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(321):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}
+Logger:         	MadelineProto
+Logger:         	Copyright (C) 2016-2023 Daniil Gentili
+Logger:         	Licensed under AGPLv3
+Logger:         	https://github.com/danog/MadelineProto
+Serialization:  	MadelineProto is starting, please wait...
+Serialization:  	Connected to IPC socket!
+Exception:      	Undefined index: IBLOCK_ID in iblockelement.php:419
+Exception:      	\danog\MadelineProto\Exception: Undefined index: IBLOCK_ID in /home/bitrix/www/bitrix/modules/iblock/classes/mysql/iblockelement.php:419
+
+TL Trace:
+<br>
+iblockelement.php(419):	exceptionErrorHandler()<br>
+iblockelement.php(667):	prepareSql()<br>
+ElementModel.php(101):	GetList()<br>
+Crew.php(10):       	find()<br>
+Telegram.php(106):  	employee()<br>
+Applications.php(320):	sendMessageToCollector()<br>
+Buttons.php(132):   	setCompleteFromResp()<br>
+Actions.php(18):    	process()<br>
+Telegram.php(51):   	process()<br>
+telegram_bot.php(6):	startProcess()
+MTProto:        	Prompting final serialization (SHUTDOWN)...
+MTProto:        	Done final serialization (SHUTDOWN)!
+API:            	Shutting down MadelineProto (danog\MadelineProto\API)
+ClientAbstract: 	Got exception while receiving in IPC client: Amp\Ipc\Sync\ChannelException: The channel closed unexpectedly. Did the context die? in /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.danog/ipc/lib/Sync/ChannelledStream.php:72
+Stack trace:
+#0 [internal function]: Amp\Ipc\Sync\ChannelledStream->Amp\Ipc\Sync\{closure}()
+#1 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Coroutine.php(118): Generator->send()
+#2 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Internal/Placeholder.php(149): Amp\Coroutine->Amp\{closure}()
+#3 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/amp/lib/Deferred.php(53): class@anonymous->resolve()
+#4 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(198): Amp\Deferred->resolve()
+#5 /home/bitrix/www/local/php_interface/composer/vendor/phabel-transpiler74.amphp/byte-stream/lib/ResourceInputStream.php(259): Amp\ByteStream\ResourceInputStream->free()
+#6 [internal function]: Amp\ByteStream\ResourceInputStream->__destruct()
+#7 {main}

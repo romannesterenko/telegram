@@ -1,0 +1,15 @@
+{
+  "require": {
+    "danog/madelineproto": "^7",
+    "psr/log": "^1"
+  },
+  "config": {
+    "allow-plugins": {
+      "phabel/phabel": true
+    },
+    "platform": {
+      "php": "7.4.33"
+    }
+  }
+
+}

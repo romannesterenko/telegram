@@ -1,0 +1,5 @@
+<?php
+
+$MESS['COMMON_SETTINGS_STEP_BEFORE'] = 'Модуль';
+$MESS['COMMON_SETTINGS_STEP_AFTER'] = 'установлен';
+$MESS['COMMON_SETTINGS_STEP_SUBMIT_BACK'] = 'Вернуться в список';

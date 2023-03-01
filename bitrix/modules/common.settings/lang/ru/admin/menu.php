@@ -1,0 +1,2 @@
+<?php
+$MESS['COMMON_SETTINGS_MENU_TITLE_TEXT'] = 'Настройки GLMS';
