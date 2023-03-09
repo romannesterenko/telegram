@@ -17,24 +17,66 @@ $aTabs = array(
         "TAB" => "Общие настройки",
         "TITLE" => "Общие настройки",
         "OPTIONS" => array(
-            'Настройки крон',
+            "Обработка новой заявки ответственным",
+            array(
+                "time_for_responsible_wait",
+                'Время на обработку новой заявки ответственным, мин',
+                "",
+                array("text", 60)
+            ),
+            array(
+                "interval_to_remind_for_responsible",
+                'Интервал напоминания о необработанных заявках ответственному, мин',
+                "",
+                array("text", 60)
+            ),
+            array(
+                "text_to_remind_for_responsible",
+                'Текст сообщения о необработанных заявках (список заявок будет в кнопках с сообщением)',
+                "",
+                array("textarea", 3, 60)
+            ),
+            "Обработка заявки экипажем инкассаторов",
+
             array(
                 "time_for_crew_wait",
                 'Время на подтверждение заявки экипажем, мин',
                 "",
                 array("text", 60)
-            )
+            ),
+            array(
+                "interval_to_remind_for_crew",
+                'Интервал напоминания о необработанной экипажем заявке ответственному за инкассацию, мин',
+                "",
+                array("text", 60)
+            ),
+            array(
+                "note" => "Значения между # - переменные для конкретной заявки, например в сообщении на место #APP_ID# подставится реальный номер заявки, а отношении которой сформировано сообщение. #RETURN# - перенос строки"
+            ),
+            array(
+                "text_to_remind_for_crew",
+                'Текст сообщения о необработанной экипажем заявке ответственному за инкассацию',
+                "",
+                array("textarea", 3, 60)
+            ),
         )
     ),
     array(
-        "DIV" => "telegram_integration",
+        "DIV" => "integration",
         "TAB" => Loc::getMessage('TELEGRAM_INTEGRATION_TITLE'),
         "TITLE" => Loc::getMessage('TELEGRAM_INTEGRATION_TEXT'),
         "OPTIONS" => array(
-            'Подключение бота',
+            'Подключение Telegram',
             array(
                 "telegram_bot_token",
                 'Токен бота телеграм',
+                "",
+                array("text", 60)
+            ),
+            'Подключение Mattermost',
+            array(
+                "mattermost_webhook_token",
+                'Токен вебхука Mattermost',
                 "",
                 array("text", 60)
             )
@@ -45,6 +87,7 @@ $aTabs = array(
         "TAB" => "Общие сообщения",
         "TITLE" => "Общие сообщения",
         "OPTIONS" => array(
+            'Запрет доступа',
             array(
                 "telegram_bot_denie_message",
                 'Сообщение о запрете доступа (логина пользователя нет в системе)',
@@ -57,9 +100,17 @@ $aTabs = array(
                 "",
                 array("text", 60)
             ),
+            'Приветственные сообщения',
             array(
-                "telegram_bot_manager_hello_message",
-                'Приветственное сообщение менеджеру',
+                "telegram_bot_common_hello_message",
+                'Приветственное сообщение после успешной регистрации',
+                "",
+                array("text", 60)
+            ),
+            'Сообщения об ошибках',
+            array(
+                "telegram_bot_wrong_command",
+                'Сообщение об ошибке обработки действия (отправленного текста)',
                 "",
                 array("text", 60)
             ),
@@ -126,10 +177,16 @@ $aTabs = array(
                 "",
                 array("text", 60)
             ),
-            'Тексты кнопок для ответственного',
+            'Тексты кнопок для ответственного за учет',
+            array(
+                "button_text_resp_apps_list_to_work",
+                'Список новых заявок в работу',
+                "",
+                array("text", 60)
+            ),
             array(
                 "button_text_resp_apps_list_new",
-                'Список заявок, готовых в работу',
+                'Список заявок в работе',
                 "",
                 array("text", 60)
             ),
@@ -159,26 +216,40 @@ $aTabs = array(
             ),
             'Тексты кнопок для кассира',
             array(
-                "button_text_cre_apps_list_new",
-                'Список заявок, готовых в работу',
+                "button_text_cre_apps_list_payment",
+                'Список заявок на выдачу (Кнопка меню)',
                 "",
                 array("text", 60)
             ),
             array(
-                "button_text_cre_allow_app",
-                'Одобрение заявки и взятие её в работу',
+                "button_text_cre_apps_list_receive",
+                'Список заявок на забор  (Кнопка меню)',
                 "",
                 array("text", 60)
             ),
             array(
                 "button_text_cre_start_new_work_day",
-                'Начало рабочего дня',
+                'Начало рабочего дня  (Кнопка меню)',
                 "",
                 array("text", 60)
             ),
             array(
                 "button_text_cre_end_work_day",
-                'Закрытие рабочего дня',
+                'Закрытие рабочего дня  (Кнопка меню)',
+                "",
+                array("text", 60)
+            ),
+
+            'Тексты кнопок для старшего смены',
+            array(
+                "button_text_crs_waiting_for_open",
+                'Список касс, ожидающих открытия смены',
+                "",
+                array("text", 60)
+            ),
+            array(
+                "button_text_crs_waiting_for_close",
+                'Список касс, ожидающих закрытия смены',
                 "",
                 array("text", 60)
             ),

@@ -53,4 +53,14 @@ class Order extends Model {
     {
         $this->setField('SUM_FACT', $real_sum);
     }
+
+    public function setCrew($crew_id)
+    {
+        $this->setField('CREW', $crew_id);
+    }
+
+    public function setInDelivery()
+    {
+        $this->setStatus(50);
+    }
 }

@@ -104,4 +104,9 @@ class Staff extends Model {
     {
         return $this->where('PROPERTY_ROLE', 35)->first();
     }
+
+    public function getCashResp(): Staff
+    {
+        return $this->where('PROPERTY_ROLE', 11)->first();
+    }
 }

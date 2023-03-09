@@ -31,9 +31,9 @@ class Markup
         if($cash_room->getId()>0) {
             $cash = $cash_room->getCash();
             $message .= "<b>" . $cash_room->getName() . "</b>\n\n";
-            $message .= "<b>Всего наличных</b> - ".number_format($cash['all'], 0, '.', ' ')."\n";
-            $message .= "<b>Резерв</b> - ".number_format($cash['reserve'], 0, '.', ' ')."\n";
-            $message .= "<b>Свободно</b> - ".number_format($cash['free'], 0, '.', ' ')."\n";
+            $message .= "Всего наличных <b>".number_format($cash['all'], 0, '.', ' ')."</b>\n";
+            $message .= "Резерв <b>".number_format($cash['reserve'], 0, '.', ' ')."</b>\n";
+            $message .= "Свободно <b>".number_format($cash['free'], 0, '.', ' ')."</b>\n";
             $message .= "==================================\n";
             $message .= "\n";
         }

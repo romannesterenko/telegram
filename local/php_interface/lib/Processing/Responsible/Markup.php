@@ -1,6 +1,7 @@
 <?php
 namespace Processing\Responsible;
 use Helpers\ArrayHelper;
+use Helpers\LogHelper;
 use Models\Applications;
 use Models\CashRoom;
 use Models\Crew;
@@ -16,51 +17,71 @@ class Markup
         $markup = [];
         switch ((int)$app->getField('RESP_STEP')){
             case 0:
-                $markup = self::getRespAddSumMarkup();
+                $markup = self::getRespGiveAfterMarkup($app_id);
                 break;
             case 1:
                 if($app->isPayment()){
-                    $markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
-                }else{
+                    if($app->hasBeforeApps()) {
+                        $markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
+                    } else {
+                        $markup = self::getRespAddSumMarkup('', $app_id);
+                    }
+                } else {
                     $markup = self::getRespAddTimeMarkup('');
-
                 }
                 break;
             case 2:
-                if($app->isPayment()){
-                    $markup = self::getRespCrewListMarkup('', $app_id);
-                }else{
-                    $markup = self::getRespAddAddressMarkup('');
+                if($app->isPayment()) {
+                    if($app->hasBeforeApps()) {
+                        $markup = self::getRespAddAddressMarkup('', '', $app_id);
+                    } else {
+                        $markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
+                    }
 
+                }else{
+                    $markup = self::getRespAddAddressMarkup('', '', $app_id);
                 }
                 break;
             case 3:
-                if($app->isPayment()){
-                    $markup = self::getRespAddComentMarkup('', $app_id);
-                }else{
-                    $markup = self::getRespCashRoomListMarkupInProcess('', $app_id);
+                if($app->isPayment()) {
+                    if($app->hasBeforeApps()) {
+                        $markup = self::getRespAddComentMarkup('', $app_id);
+                    } else {
+                        $markup = self::getRespAddAddressMarkup('', '', $app_id);
+                    }
 
+                }else{
+                    $markup = self::getRespCrewListMarkup('', $app_id);
                 }
                 break;
             case 4:
-                if($app->isPayment()){
-                    $markup = self::getRespCompleteAppMarkup('');
-                }else{
-                    $markup = self::getRespCrewListMarkup('', $app_id);
+                if($app->isPayment()) {
+                    if($app->hasBeforeApps()) {
+                        $markup = self::getRespCompleteAppMarkup('');
+                    } else {
+                        $markup = self::getRespAddComentMarkup('', $app_id);
+                    }
+                } else {
+
                 }
                 break;
             case 5:
                 if($app->isPayment()){
+                    if($app->hasBeforeApps()) {
+                        $markup = self::getRespAddSumMarkup('', $app_id);
+                    } else {
+                        $markup = self::getRespCompleteAppMarkup('');
+                    }
 
-                }else{
-                    $markup = self::getRespAddComentMarkup('', $app_id);
+                } else {
+                    //$markup = self::getRespAddComentMarkup('', $app_id);
                 }
                 break;
             case 6:
                 if($app->isPayment()){
 
                 }else{
-                    $markup = self::getRespCompleteAppMarkup('');
+                    //$markup = self::getRespCompleteAppMarkup('');
                 }
                 break;
         }
@@ -80,21 +101,29 @@ class Markup
                 [
                     [
                         'text' => Common::getButtonText('resp_allow_app'),
-                        'callback_data' => 'allowAppByResp_'.$app_id
+                        'callback_data' => 'setToRefinement_'.$app_id
                     ],
                     [
                         'text' => Common::getButtonText('resp_denie_app'),
                         'callback_data' => 'RespCancelApp_'.$app_id
                     ],
                 ]
-            ]
+            ],
         ]);
         return $response;
     }
     //Выдача. Шаг №1. Сумма сделки
-    public static function getRespAddSumMarkup($error=''): array
+    public static function getRespAddSumMarkup($error='', $app_id=0): array
     {
-        $response['message'] = $error."Шаг №1. \nВведите <b>сумму сделки</b>";
+        $response['message'] = $error."Шаг №2. \nВведите <b>сумму сделки</b>";
+        if($app_id>0){
+            $applications = new Applications();
+            $app = $applications->find($app_id);
+            if($app->hasBeforeApps()){
+                $response['message'] = $error."Шаг №5. \nВведите <b>сумму сделки</b>";
+            }
+        }
+
         return $response;
     }
 
@@ -106,10 +135,18 @@ class Markup
         $response['message'].= "\n\n".$error."Шаг №2. \nВведите <b>время</b>";
         return $response;
     }
-    public static function getRespAddAddressMarkup($text, $error=''): array
+    public static function getRespAddAddressMarkup($text, $error='', $app_id): array
     {
         $response['message'] = $text;
-        $response['message'].= "\n\n".$error."Шаг №3. \nВведите <b>адрес</b>";
+        $response['message'] = "Шаг №3. \nВведите <b>адрес</b> контактного лица";
+        if($app_id>0){
+            $applications = new Applications();
+            $app = $applications->find($app_id);
+            if($app->hasBeforeApps()){
+                $response['message'] = "Шаг №3. \nВведите <b>адрес</b> контактного лица";
+            }
+        }
+
         return $response;
     }
     public static function getRespAddComentMarkup($text, $app_id): array
@@ -117,6 +154,8 @@ class Markup
         $applications = new Applications();
         $app = $applications->find($app_id);
         $step = $app->isPayment()?4:6;
+        if($step==4&&$app->hasBeforeApps())
+            $step = 5;
         $response['message'] = $text;
         $response['message'].= "Шаг №$step.\nВведите <b>Комментарий к заявке</b>  (Шаг можно пропустить)";
         $response['buttons'] = json_encode([
@@ -175,9 +214,11 @@ class Markup
         $app = $applications->find($id);
         $list = $cash_rooms->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
         if($app->isPayment()){
-            $response['message'].= "Шаг №2. \nВыберите <b>Кассу</b>";
-        }else{
-            $response['message'].= "Шаг №4. \nВыберите <b>Кассу</b>";
+            if(!$app->hasBeforeApps()) {
+                $response['message'].= "Шаг №3. \nВыберите <b>Кассу</b>";
+            } else {
+                $response['message'].= "Шаг №2. \nВыберите <b>Кассу</b>";
+            }
         }
         $response['message'].= "\nИнформация по кассам:\n";
         if (ArrayHelper::checkFullArray($list)) {
@@ -204,7 +245,7 @@ class Markup
         if($app->isPayment())
             $response['message'].= "\n\nШаг №3. \nВыберите <b>экипаж</b>";
         else
-            $response['message'].= "\n\nШаг №5. \nВыберите <b>экипаж</b>";
+            $response['message'].= "\n\nШаг №4. \nВыберите <b>экипаж</b>";
         $crews = new Crew();
         $list = $crews->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
 
@@ -224,5 +265,138 @@ class Markup
             'inline_keyboard' => [$crew_list]
         ]);
         return $response;
+    }
+
+    private static function getRespGiveAfterMarkup($id): array
+    {
+        $applications = new Applications();
+        $applications1 = new Applications();
+        $applications_exists = new Applications();
+        $pp = $applications1->find($id);
+        $response['message'] = "Шаг №1. \nВыбрать заявку, по завершению которой выдать деньги или продолжить оформление.\n";
+        $already_exists = $pp->getField('GIVE_AFTER');
+        if(ArrayHelper::checkFullArray($already_exists)) {
+            $already_exists_list = $applications_exists
+                ->where('ID', $already_exists)
+                ->select(['ID', 'NAME', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME'])
+                ->buildQuery()
+                ->getArray();
+            if (ArrayHelper::checkFullArray($already_exists_list)) {
+                $response['message'] .= "\n\nСписок уже привязанных заявок:";
+                foreach ($already_exists_list as $already_exists_app) {
+                    $response['message'] .= "\n===================\n";
+                    $response['message'] .= "Заявка №" . $already_exists_app['ID'] . ". Сумма " . number_format($already_exists_app['PROPERTY_SUMM_VALUE'], 0, '', ' ') . ". Контрагент - " . $already_exists_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
+                }
+            }
+        }
+        if (ArrayHelper::checkFullArray($already_exists)) {
+            $app_list[] = [
+                [
+                    'text' => "Больше не выбирать и продолжить оформление",
+                    "callback_data" => "NotSetAfterApp_" . $id
+                ]
+            ];
+        }else{
+            $app_list[] = [
+                [
+                    'text' => "Не выбирать и продолжить оформление",
+                    "callback_data" => "NotSetAfterApp_" . $id
+                ]
+            ];
+        }
+        $list = $applications->getForLink($already_exists);
+        if (ArrayHelper::checkFullArray($list)) {
+            foreach ($list as $app) {
+                $app_list[] = [
+                    [
+                        'text' => "Заявка №".$app['ID'].". Сумма ".number_format($app['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контрагент - ".$app['PROPERTY_AGENT_OFF_NAME_VALUE'],
+                        "callback_data" => "setAfterApp_".$id.'_'.$app['ID']
+                    ]
+                ];
+            }
+        }else{
+            if(ArrayHelper::checkFullArray($already_exists)){
+                $response['message'].= "\n\nДоступных к привязке заявок больше нет";
+            } else {
+                $response['message'].= "\n\nДоступных к привязке заявок нет";
+            }
+        }
+        $response['buttons'] = json_encode(['inline_keyboard' => $app_list]);
+        return $response;
+    }
+
+    public static function getMoreRespGiveAfterMarkup($id): array
+    {
+        $applications = new Applications();
+        $applications1 = new Applications();
+        $applications_exists = new Applications();
+        $pp = $applications1->find($id);
+        $already_exists = $pp->getField('GIVE_AFTER');
+        $response['message'] = "Успешно. \nШаг №1. \nВыбрать еще заявку, по завершению которой выдать деньги или продолжить оформление";
+        $app_list=[];
+        $app_list[] = [
+            [
+                'text' => "Больше не привязывать и продолжить оформление",
+                "callback_data" => "NotSetAfterApp_".$id
+            ]
+        ];
+        $list = $applications->getForLink($already_exists);
+
+        $already_exists_list = $applications_exists
+            ->where('ID', $already_exists)
+            ->select(['ID', 'NAME', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])
+            ->buildQuery()
+            ->getArray();
+
+        if(ArrayHelper::checkFullArray($already_exists_list)){
+            $response['message'].= "\n\nСписок уже привязанных заявок:";
+            foreach ($already_exists_list as $already_exists_app){
+                $response['message'].="\n===================\n";
+                $response['message'].= "Заявка №".$already_exists_app['ID'].". Сумма ".number_format($already_exists_app['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контрагент - ".$already_exists_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
+            }
+        }
+
+
+        if (ArrayHelper::checkFullArray($list)) {
+            foreach ($list as $app) {
+                $app_list[] = [
+                    [
+                        'text' => "Заявка №".$app['ID'].". Сумма ".number_format($app['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контрагент - ".$app['PROPERTY_AGENT_OFF_NAME_VALUE'],
+                        "callback_data" => "setAfterApp_".$id.'_'.$app['ID']
+                    ]
+                ];
+            }
+        }else{
+            if(ArrayHelper::checkFullArray($already_exists)){
+                $response['message'].= "\n\nДоступных к привязке заявок больше нет";
+            } else {
+                $response['message'].= "\n\nДоступных к привязке заявок нет";
+            }
+        }
+        $response['buttons'] = json_encode(['inline_keyboard' => $app_list]);
+        return $response;
+    }
+
+    public static function getRespAppsListMarkup(array $list)
+    {
+        if (ArrayHelper::checkFullArray($list)) {
+            $inline_keyboard = [];
+            foreach ($list as $application) {
+                $text = '';
+                if($application['PROPERTY_OPERATION_TYPE_VALUE'])
+                    $text.=$application['PROPERTY_OPERATION_TYPE_VALUE'] . ". ";
+                $inline_keyboard[] = [
+                    [
+                        "text" => '№'.$application['ID'].'. '.$text . $application['PROPERTY_STATUS_VALUE'] . '. Создана ' . $application['CREATED_DATE'],
+                        "callback_data" => "showApplicationForResponse_" . $application['ID']
+                    ]
+                ];
+            }
+            $message = 'Выберите заявку из списка для просмотра или управления';
+            $keyboard = array("inline_keyboard" => $inline_keyboard);
+            $buttons = json_encode($keyboard);
+        } else {
+            $message = 'Заявок пока нет';
+        }
     }
 }

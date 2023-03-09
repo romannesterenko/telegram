@@ -21,4 +21,13 @@ class StringHelper
         }
         return true;
     }
+
+    public static function genMessageFromTemplate($template, $variables=[]){
+        if(!is_array($variables)&&count($variables)==0)
+            return $template;
+        foreach ($variables as $variable=>$replace){
+            $template = str_replace('#'.$variable."#", $replace, $template);
+        }
+        return $template;
+    }
 }

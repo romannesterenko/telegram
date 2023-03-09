@@ -1,6 +1,7 @@
 <?php try {
     Bitrix\Main\Loader::registerAutoLoadClasses(null, [
         'Api\Telegram' => '/local/php_interface/lib/Api/Telegram.php',
+        'Api\Mattermost' => '/local/php_interface/lib/Api/Mattermost.php',
         'Api\Sender' => '/local/php_interface/lib/Api/Sender.php',
         'Settings\Common' => '/local/php_interface/lib/Settings/Common.php',
         'Helpers\ArrayHelper' => '/local/php_interface/lib/Helpers/ArrayHelper.php',

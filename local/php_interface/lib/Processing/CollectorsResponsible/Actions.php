@@ -12,6 +12,19 @@ class Actions
     public static function process(\Models\Staff $employee, $data, $is_callback): array
     {
         $message = 'К сожалению, вы ввели неизвестную мне команду :/';
+        $buttons = json_encode([
+            'resize_keyboard' => true,
+            'keyboard' => [
+                [
+                    [
+                        'text' => "Заявки в работу"
+                    ],
+                    [
+                        'text' => Common::getButtonText('resp_apps_list_new')
+                    ]
+                ]
+            ]
+        ]);
         if($is_callback){
             $data['chat']['id'] = $data['message']['chat']['id'];
             if(!empty($data['data'])){
@@ -23,6 +36,30 @@ class Actions
         } else {
             switch ($data['text']) {
                 //запрос списка заявок
+                case "Заявки в работу":
+                    $applications = new Applications();
+                    $list = $applications->getToWorkAppsForCollResp();
+                    //$list = $applications->getAppsForCollResp();
+                    if (ArrayHelper::checkFullArray($list)) {
+                        $inline_keyboard = [];
+                        foreach ($list as $application) {
+                            $text = '';
+                            if($application['PROPERTY_OPERATION_TYPE_VALUE'])
+                                $text.=$application['PROPERTY_OPERATION_TYPE_VALUE'] . ". ";
+                            $inline_keyboard[] = [
+                                [
+                                    "text" => '№'.$application['ID'].'. '.$text . $application['PROPERTY_STATUS_VALUE'] . '. Создана ' . $application['CREATED_DATE'],
+                                    "callback_data" => "showApplicationForResponse_" . $application['ID']
+                                ]
+                            ];
+                        }
+                        $message = 'Выберите заявку из списка для просмотра или управления';
+                        $keyboard = array("inline_keyboard" => $inline_keyboard);
+                        $buttons = json_encode($keyboard);
+                    } else {
+                        $message = 'Действующих заявок пока нет';
+                    }
+                    break;
                 case Common::getButtonText('resp_apps_list_new'):
                     $applications = new Applications();
                     $list = $applications->getAppsForCollResp();
@@ -46,15 +83,26 @@ class Actions
                         $message = 'Действующих заявок пока нет';
                     }
                     break;
-                //запрос списка касс
-                case Common::getButtonText('resp_cash_room_list'):
-                    $response = RespMarkup::getRespCashRoomListMarkup();
-                    $message = $response['message'];
-                    break;
                 //успешная авторизация в приложении команда /start
                 case '/start':
                     $employee->setChatID($data['chat']['id']);
                     $message = 'Здравствуйте. Управляйте заявками из меню ниже';
+                    /*$buttons = json_encode([
+                        'resize_keyboard' => true,
+                        'keyboard' => [
+                            [
+                                [
+                                    'text' => Common::getButtonText('resp_apps_list_new')
+                                ],
+                                [
+                                    'text' => "Заявки в работу"
+                                ]
+                            ]
+                        ]
+                    ]);*/
+                    break;
+                //другие текстовые данные
+                default:
                     $buttons = json_encode([
                         'resize_keyboard' => true,
                         'keyboard' => [
@@ -65,9 +113,6 @@ class Actions
                             ]
                         ]
                     ]);
-                    break;
-                //другие текстовые данные
-                default:
                     $applications = new Applications();
                     //если заявка в стадии черновик
                     if ($applications->getNeedCancelByCollRespId() > 0){

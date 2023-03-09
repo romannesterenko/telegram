@@ -12,7 +12,7 @@ class Common
         return self::get('telegram_bot_manager_hello_message');
     }
 
-    private static function get($code){
+    public static function get($code){
         return Option::get( "common.settings", $code)??'';
     }
 
@@ -31,6 +31,11 @@ class Common
         return self::get('telegram_bot_wrong_callback');
     }
 
+    public static function getWrongTextData()
+    {
+        return self::get('telegram_bot_wrong_command');
+    }
+
     public static function getWrongAppActionText()
     {
         return self::get('telegram_bot_wrong_action_for_app');
@@ -41,7 +46,17 @@ class Common
         return (int)self::get('time_for_crew_wait');
     }
 
-    private static function set($code, $value):bool{
+    public static function getHelloCommonMessage()
+    {
+        return self::get('telegram_bot_common_hello_message');
+    }
+
+    public static function getTimeForRespWait()
+    {
+        return (int)self::get('time_for_responsible_wait');
+    }
+
+    public static function set($code, $value):bool{
         Option::set( "common.settings", $code, $value);
         return self::get($code)==$value;
     }

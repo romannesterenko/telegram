@@ -30,14 +30,16 @@ class CashRoomDay extends Model {
         $this->setField('END_SUM', $sum);
     }
 
-    public function setOpen($id)
+    public function setOpen()
     {
-        $day = $this->find($id);
         $staff = new Staff();
-        $day->setField('APPROVED_BY', $staff->getSenior()->getId());
-        $day->setField('APPROVED_DATE', date('d.m.Y H:i:s'));
-        $day->setOpenedTime();
-        $day->setStatus(32);
+        if($this->isNeedApprove()) {
+            $this->setField('APPROVED_BY', $staff->getSenior()->getId());
+            $this->removeNeedApprove();
+        }
+        $this->setField('APPROVED_DATE', date('d.m.Y H:i:s'));
+        $this->setOpenedTime();
+        $this->setStatus(32);
     }
 
     public function setWaitForSenior()
@@ -71,21 +73,22 @@ class CashRoomDay extends Model {
         $this->setStatus(33);
     }
 
-    public function isExistsClosingStarted(): bool
+    public function isExistsClosingStarted($cash_room_id): bool
     {
-        return $this->getClosingStarted()->getId()>0;
+        return $this->getClosingStarted($cash_room_id)->getId()>0;
     }
 
-    public function getClosingStarted(): CashRoomDay
+    public function getClosingStarted($cash_room_id): CashRoomDay
     {
-        return $this->where('PROPERTY_STATUS', 33)->first();
+        return $this->where('PROPERTY_STATUS', 33)->where('PROPERTY_CASH_ROOM', $cash_room_id)->first();
     }
 
-    public function setClose($day_id)
+    public function setClose()
     {
-        $day = $this->find($day_id);
-        $day->setClosedTime();
-        $day->setStatus(34);
+        //$day = $this->find($day_id);
+        $this->removeNeedApprove();
+        $this->setClosedTime();
+        $this->setStatus(34);
     }
 
     public function setClosedTime()
@@ -95,7 +98,8 @@ class CashRoomDay extends Model {
 
     public function getLastByCashRoom($id): CashRoomDay
     {
-        return $this->where('PROPERTY_CASH_ROOM', $id)->where('STATUS', 34)->first();
+        $this->resetFilter();
+        return $this->where('PROPERTY_CASH_ROOM', $id)->where('PROPERTY_STATUS', 34)->first();
     }
 
     public function getTodayByCashRoom($id): CashRoomDay
@@ -128,7 +132,7 @@ class CashRoomDay extends Model {
             ->first();
     }
 
-    public function isExistsWaitingForClose($cash_room_id)
+    public function isExistsWaitingForClose($cash_room_id): bool
     {
         $day = $this->getExistsWaitingForClose($cash_room_id);
         return $day->getId()>0;
@@ -146,8 +150,9 @@ class CashRoomDay extends Model {
         return $this->getField('PROPERTY_STATUS_ENUM_ID');
     }
 
-    public function getLastClosedFromCashRoom($cash_room_id)
+    public function getLastClosedFromCashRoom($cash_room_id): CashRoomDay
     {
+        $this->resetFilter();
         return $this->where('PROPERTY_STATUS', 34)
             ->where('PROPERTY_CASH_ROOM', $cash_room_id)
             ->first();
@@ -155,12 +160,51 @@ class CashRoomDay extends Model {
 
     public function getCashByCashRoom($cash_room_id)
     {
-        $today = $this->getExistsOpenToday($cash_room_id, true);
-        if($today->getId()&&$today->getField('START_SUM'))
+        $today = $this->getExistsOpenToday($cash_room_id);
+
+        if($today->getId()>0&&$today->getField('START_SUM'))
             return (int)$today->getField('START_SUM');
         else{
-            $last_day = $this->getLastByCashRoom($cash_room_id);
+
+            $last_day = $this->getLastClosedFromCashRoom($cash_room_id);
             return (int)$last_day->getField('END_SUM');
         }
     }
+
+    public function setNeedApprove()
+    {
+        $this->setField('NEED_APPROVE', 46);
+    }
+
+    public function isNeedApprove():bool {
+
+        return $this->getField('PROPERTY_NEED_APPROVE_ENUM_ID')==46;
+    }
+
+    public function removeNeedApprove()
+    {
+        $this->setField('NEED_APPROVE', false);
+    }
+
+    public function getWaitingForOpenToday(): array
+    {
+        return $this
+            ->where('PROPERTY_DATE', date('Y-m-d'))
+            ->where('PROPERTY_NEED_APPROVE',46)
+            ->where('PROPERTY_STATUS', 36)
+            ->buildQuery()
+            ->getArray();
+    }
+
+    public function getWaitingForCloseToday(): array
+    {
+        return $this
+            ->where('PROPERTY_DATE', date('Y-m-d'))
+            ->where('PROPERTY_NEED_APPROVE',46)
+            ->where('PROPERTY_STATUS', 37)
+            ->buildQuery()
+            ->getArray();
+    }
+
+
 }

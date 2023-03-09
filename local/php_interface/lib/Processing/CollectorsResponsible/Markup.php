@@ -38,22 +38,21 @@ class Markup
                 if($app->isPayment()){
                     $markup = self::getRespAddComentMarkup('', $app_id);
                 }else{
-                    $markup = self::getRespCashRoomListMarkupInProcess('', $app_id);
-
+                    $markup = self::getRespCrewListMarkup('', $app_id);
                 }
                 break;
             case 4:
                 if($app->isPayment()){
                     $markup = self::getRespCompleteAppMarkup('');
                 }else{
-                    $markup = self::getRespCrewListMarkup('', $app_id);
+                    $markup = self::getRespAddComentMarkup('', $app_id);
                 }
                 break;
             case 5:
                 if($app->isPayment()){
 
                 }else{
-                    $markup = self::getRespAddComentMarkup('', $app_id);
+
                 }
                 break;
             case 6:
@@ -109,14 +108,14 @@ class Markup
     public static function getRespAddAddressMarkup($text, $error=''): array
     {
         $response['message'] = $text;
-        $response['message'].= "\n\n".$error."Шаг №3. \nВведите <b>адрес</b>";
+        $response['message'].= "\n\n".$error."Шаг №3. \nВведите <b>адрес</b> контактного лица";
         return $response;
     }
     public static function getRespAddComentMarkup($text, $app_id): array
     {
         $applications = new Applications();
         $app = $applications->find($app_id);
-        $step = $app->isPayment()?4:6;
+        $step = $app->isPayment()?4:5;
         $response['message'] = $text;
         $response['message'].= "Шаг №$step.\nВведите <b>Комментарий к заявке</b>  (Шаг можно пропустить)";
         $response['buttons'] = json_encode([
@@ -204,7 +203,7 @@ class Markup
         if($app->isPayment())
             $response['message'].= "\n\nШаг №3. \nВыберите <b>экипаж</b>";
         else
-            $response['message'].= "\n\nШаг №5. \nВыберите <b>экипаж</b>";
+            $response['message'].= "\n\nШаг №4. \nВыберите <b>экипаж</b>";
         $crews = new Crew();
         $list = $crews->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
 
@@ -223,6 +222,33 @@ class Markup
             'resize_keyboard' => true,
             'inline_keyboard' => [$crew_list]
         ]);
+        return $response;
+    }
+
+    public static function getNeedSetCashRoomByAppMarkup($appId)
+    {
+        $applications = new Applications();
+        $cash_room_list = [];
+        $cash_rooms = new CashRoom();
+        $app = $applications->find($appId);
+        $response['message'] = "Заявка №".$app->getId()."\n";
+        if(!$app->isPayment()){
+            $response['message'].= "Для выполнения заявки по забору средств, необходимо выбрать кассу\n";
+            $response['message'].= "Сумма - ".number_format($app->getSum(), 0, ', ' , ' ')."\n";
+            $list = $cash_rooms->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
+            if (ArrayHelper::checkFullArray($list)) {
+                foreach ($list as $cash_room) {
+                    $cash_room_list[] = [
+                        'text' => $cash_room['NAME'],
+                        "callback_data" => "setCashRoomToApp_".$app->getId().'_'.$cash_room['ID']
+                    ];
+                }
+            }
+            $response['buttons'] = json_encode([
+                'resize_keyboard' => true,
+                'inline_keyboard' => [$cash_room_list]
+            ]);
+        }
         return $response;
     }
 }

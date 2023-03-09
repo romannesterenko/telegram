@@ -3,6 +3,7 @@
 namespace Models;
 use CIBlock;
 use CIBlockElement;
+use CIBlockProperty;
 use CModule;
 use Helpers\ArrayHelper;
 use Helpers\LogHelper;
@@ -15,7 +16,7 @@ abstract class ElementModel {
     private $id;
     private $name;
     private $filter = [];
-    private $select = ['ID', 'NAME', 'CODE', 'ACTIVE'];
+    private $select = ['ID', 'NAME', 'CODE', 'ACTIVE', 'CREATED_DATE', 'TIMESTAMP_X'];
     private $update_fields = [];
     private static function includeIblockModule(){
         CModule::IncludeModule('iblock');
@@ -28,12 +29,18 @@ abstract class ElementModel {
 
     public function getField($field)
     {
-
         return $this->result_array[$field]??$this->result_array['PROPERTY_'.$field.'_VALUE'];
     }
 
     public function where($name, $value): ElementModel
     {
+        $this->filter[$name] = $value;
+        return $this;
+    }
+
+    public function whereNot($name, $value): ElementModel
+    {
+        $name = "!".$name;
         $this->filter[$name] = $value;
         return $this;
     }
@@ -55,8 +62,28 @@ abstract class ElementModel {
             $this->select[] = 'PROPERTY_'.$prop;
         }
         $res = CIBlockElement::GetList(['ID'=>'DESC'], $this->filter, false, false, $this->select);
-        while ($item = $res->fetch())
-            $this->result_array[] = $item;
+        $added = [];
+        while ($item = $res->fetch()) {
+            if(!in_array($item['ID'], $added)) {
+                $this->result_array[] = $item;
+                $added[] = $item['ID'];
+            }
+        }
+        return $this;
+    }
+    public function buildQuery(): ElementModel
+    {
+        foreach (self::props() as $prop => $data){
+            $this->select[] = 'PROPERTY_'.$prop;
+        }
+        $res = CIBlockElement::GetList(['ID'=>'DESC'], $this->filter, false, false, $this->select);
+        $added = [];
+        while ($item = $res->fetch()) {
+            if(!in_array($item['ID'], $added)) {
+                $this->result_array[] = $item;
+                $added[] = $item['ID'];
+            }
+        }
         return $this;
     }
 
@@ -75,7 +102,25 @@ abstract class ElementModel {
         return ArrayHelper::checkFullArray($this->result_array)?$this->result_array:[];
     }
 
+    public function resetFilter()
+    {
+        unset($this->filter);
+        $this->filter['IBLOCK_ID'] = self::getIBlockId();
+    }
+
     public function setField($string, $text, $timestamp = false){
+        /*$property = CIBlockProperty::GetList(Array("sort"=>"asc", "name"=>"asc"), Array("ACTIVE"=>"Y", "IBLOCK_ID"=>self::getIBlockId(), 'CODE' => $string))->Fetch();
+        if($property['MULTIPLE']=='Y'){
+            $res = CIBlockElement::GetProperty(self::getIBlockId(), $this->getId(), "sort", "asc", array("CODE" => $string));
+            $arr = [];
+            while ($f = $res->Fetch()) {
+                if($f['VALUE']!=$text)
+                    $arr[] = ['VALUE' => $f['VALUE'], 'DESCRIPTION' => ''];
+            }
+            $arr[] = ['VALUE' => $text, 'DESCRIPTION' => ''];
+            $text = $arr;
+        }*/
+
         CIBlockElement::SetPropertyValuesEx($this->getField('ID'), false, array($string => $text));
         if($timestamp){
             $el = new CIBlockElement;
@@ -94,6 +139,7 @@ abstract class ElementModel {
             $select = array_merge($select, ['ID', 'NAME']);
         }
         $this->result_array = CIBlockElement::GetList(['ID' => 'DESC'], ['IBLOCK_ID' => self::getIBlockId(), '=ID' => $id], false, false, $select)->fetch();
+
         $this->id = $this->result_array['ID'];
         $this->name = $this->result_array['NAME'];
         return $this;

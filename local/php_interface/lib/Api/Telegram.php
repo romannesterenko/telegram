@@ -32,6 +32,17 @@ class Telegram
         }
     }
 
+    public static function sendMessageToCashResp($markup)
+    {
+        $staff = new Staff();
+        $chat_id = $staff->getCashResp()->getField('TG_CHAT_ID');
+        if(!empty($chat_id)){
+            $params = ["chat_id" => $chat_id, "text" => $markup['message'], 'parse_mode' => 'HTML', 'reply_markup' => $markup['buttons']];
+            self::sendMessage($params);
+        }
+    }
+
+
 
     private static function getToken()
     {

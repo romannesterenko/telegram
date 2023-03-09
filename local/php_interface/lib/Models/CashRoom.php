@@ -43,6 +43,7 @@ class CashRoom extends Model {
     public function getCash(): array
     {
         $cash_room_days = new CashRoomDay();
+        $cash_room_days_open = new CashRoomDay();
         $orders = new Order();
         $start_cash = $cash_room_days->getCashByCashRoom($this->getField('ID'));
         $return_array = [
@@ -50,27 +51,35 @@ class CashRoom extends Model {
             'reserve' => 0,
             'free' => 0
         ];
-        $order_list = $orders->getByDay($this->getNearestWorkDay()->getId());
-        //$order_list = $orders->getByCashRoom($this->getField('ID'));
-        $return_array['all'] = $start_cash;
-        if(ArrayHelper::checkFullArray($order_list->getArray())){
-            foreach ($order_list->getArray() as $order){
-                if($order['PROPERTY_STATUS_ENUM_ID'] == 38){
-                    if($order['PROPERTY_OPERATION_TYPE_ENUM_ID']==28){
-                        $return_array['reserve']+=(int)$order['PROPERTY_SUM_FACT_VALUE'];
+        if($cash_room_days_open->isExistsOpenToday($this->getField('ID'))) {
+            $order_list = $orders->getByDay($this->getNearestWorkDay()->getId());
+            $return_array['all'] = $start_cash;
+            if (ArrayHelper::checkFullArray($order_list->getArray())) {
+                foreach ($order_list->getArray() as $order) {
+                    $sum = (int)$order['PROPERTY_SUM_FACT_VALUE'] > 0 ? (int)$order['PROPERTY_SUM_FACT_VALUE'] : (int)$order['PROPERTY_SUM_VALUE'];
+                    if ($order['PROPERTY_STATUS_ENUM_ID'] == 38) {
+                        if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 28) {
+                            $return_array['reserve'] += $sum;
+                        }
+                    } elseif ($order['PROPERTY_STATUS_ENUM_ID'] == 39 || $order['PROPERTY_STATUS_ENUM_ID'] == 50) {
+                        if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 29) {
+                            $return_array['all'] += $sum;
+                        }
+                        if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 28) {
+                            $return_array['all'] -= $sum;
+                        }
                     }
-                } else {
-                    if($order['PROPERTY_OPERATION_TYPE_ENUM_ID']==29){
-                        $return_array['all']+=(int)$order['PROPERTY_SUM_FACT_VALUE'];
-                    }
-                    if($order['PROPERTY_OPERATION_TYPE_ENUM_ID']==28){
-                        $return_array['all']-=(int)$order['PROPERTY_SUM_FACT_VALUE'];
-                    }
-                }
 
+                }
             }
+            $return_array['free'] = $return_array['all'] - $return_array['reserve'];
+        } else {
+            $return_array = [
+                'all' => $start_cash,
+                'reserve' => 0,
+                'free' => $start_cash
+            ];
         }
-        $return_array['free'] = $return_array['all'] - $return_array['reserve'];
         return $return_array;
     }
 

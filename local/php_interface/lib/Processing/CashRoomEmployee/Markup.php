@@ -2,6 +2,7 @@
 namespace Processing\CashRoomEmployee;
 use Models\Applications;
 use Models\CashRoom;
+use Models\CashRoomDay;
 
 class Markup
 {
@@ -27,13 +28,19 @@ class Markup
     {
         $message = '';
         $cash_rooms = new CashRoom();
+        $cash_room_days = new CashRoomDay();
         $cash_room = $cash_rooms->find($cash_room_id);
         if($cash_room->getId()>0) {
+            $status = "Закрыта";
+            if($cash_room_days->isExistsOpenToday($cash_room->getId())) {
+                $status = "Открыта";
+            }
             $cash = $cash_room->getCash();
             $message .= "<b>" . $cash_room->getName() . "</b>\n\n";
-            $message .= "<b>Всего наличных</b> - ".number_format($cash['all'], 0, '.', ' ')."\n";
-            $message .= "<b>Резерв</b> - ".number_format($cash['reserve'], 0, '.', ' ')."\n";
-            $message .= "<b>Свободно</b> - ".number_format($cash['free'], 0, '.', ' ')."\n";
+            $message .= "Cтатус - <b>".$status."</b>\n";
+            $message .= "Всего наличных <b>".number_format($cash['all'], 0, '.', ' ')."</b>\n";
+            $message .= "Резерв <b>".number_format($cash['reserve'], 0, '.', ' ')."</b>\n";
+            $message .= "Свободно <b>".number_format($cash['free'], 0, '.', ' ')."</b>\n";
             $message .= "==================================\n";
             $message .= "\n";
         }

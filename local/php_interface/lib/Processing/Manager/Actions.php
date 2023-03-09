@@ -3,11 +3,25 @@ namespace Processing\Manager;
 use Helpers\ArrayHelper;
 use Models\Applications;
 use Processing\Manager\Buttons as ManagerButtons;
+use Settings\Common;
 
 class Actions
 {
     public static function process(\Models\Staff $employee, $data, $is_callback)
     {
+        $buttons = json_encode([
+            'resize_keyboard' => true,
+            'keyboard' => [
+                [
+                    [
+                        'text' => \Settings\Common::getButtonText('manager_app_list')
+                    ],
+                    [
+                        'text' => \Settings\Common::getButtonText('manager_new_app')
+                    ],
+                ]
+            ]
+        ]);
         if( $is_callback ){
             $data['chat']['id'] = $data['message']['chat']['id'];
             if( !empty( $data['data'] ) ){
@@ -17,6 +31,7 @@ class Actions
                     $buttons = $response['buttons'];
             }
         } else {
+
             switch ( $data['text'] ) {
                 //мои заявки
                 case \Settings\Common::getButtonText('manager_app_list'):
@@ -54,7 +69,6 @@ class Actions
                     } else {
                         $message = 'Действующих заявок пока нет';
                     }
-
                     break;
                 //восстановление процесса оформления
                 case \Settings\Common::getButtonText('manager_restore_app'):
@@ -123,8 +137,7 @@ class Actions
                 //успешная авторизация в приложении команда /start
                 case '/start':
                     $employee->setChatID($data['chat']['id']);
-                    $message = \Settings\Common::getManagerHelloMessage();
-                    $message = 'Здравствуйте. Управляйте своими зявками или создайте новую';
+                    $message = Common::getHelloCommonMessage();
                     $buttons = json_encode([
                         'resize_keyboard' => true,
                         'keyboard' => [

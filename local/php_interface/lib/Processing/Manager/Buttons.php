@@ -73,13 +73,39 @@ class Buttons
                         $markup['message'] = \Settings\Common::getWrongAppActionText();
                     } else {
                         $app->setField('DRAFT_STEP', 4);
-                        $app->setField('STATUS', 4);
+                        $app->setReadyToWorkStatus();
                         if($app->isPayment()) {
-                            $markup = Markup::getCompletedAppMarkup($app->prepareAppDataMessage($app->getField('ID')));
+                            $markup['message'] = "Заявка №".$app->getId()." создана";
                             Telegram::sendMessageToResp($app->prepareAppDataMessage($app->getField('ID')), $app->getField('ID'));
+                            $markup['buttons'] = json_encode([
+                                'resize_keyboard' => true,
+                                'keyboard' => [
+                                    [
+                                        [
+                                            'text' => \Settings\Common::getButtonText('manager_app_list')
+                                        ],
+                                        [
+                                            'text' => \Settings\Common::getButtonText('manager_new_app')
+                                        ],
+                                    ]
+                                ]
+                            ]);
                         }else{
-                            $markup = Markup::getCompletedAppMarkup($app->prepareAppDataMessage($app->getField('ID')));
+                            $markup['message'] = "Заявка №".$app->getId()." создана";
                             Telegram::sendMessageToCollResp($app->prepareAppDataMessage($app->getField('ID')), $app->getField('ID'));
+                            $markup['buttons'] = json_encode([
+                                'resize_keyboard' => true,
+                                'keyboard' => [
+                                    [
+                                        [
+                                            'text' => \Settings\Common::getButtonText('manager_app_list')
+                                        ],
+                                        [
+                                            'text' => \Settings\Common::getButtonText('manager_new_app')
+                                        ],
+                                    ]
+                                ]
+                            ]);
                         }
                     }
                     $message = $markup['message'];
