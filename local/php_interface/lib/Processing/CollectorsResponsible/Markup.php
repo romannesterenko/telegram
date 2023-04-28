@@ -16,46 +16,52 @@ class Markup
         $markup = [];
         switch ((int)$app->getField('RESP_STEP')){
             case 0:
-                $markup = self::getRespAddSumMarkup();
+                //$markup = self::getRespAddSumMarkup();
+                $markup = self::getRespAddTimeMarkup('');
                 break;
             case 1:
                 if($app->isPayment()){
-                    $markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
+                    $markup = self::getRespAddAddressMarkup('');
+                    //$markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
                 }else{
-                    $markup = self::getRespAddTimeMarkup('');
-
+                    //$markup = self::getRespAddTimeMarkup('');
+                    $markup = self::getRespAddAddressMarkup('');
                 }
                 break;
             case 2:
                 if($app->isPayment()){
                     $markup = self::getRespCrewListMarkup('', $app_id);
                 }else{
-                    $markup = self::getRespAddAddressMarkup('');
-
+                    $markup = self::getRespCrewListMarkup('', $app_id);
                 }
                 break;
             case 3:
                 if($app->isPayment()){
-                    $markup = self::getRespAddComentMarkup('', $app_id);
+                    $markup = self::getRespAddTimeMarkup('');
                 }else{
-                    $markup = self::getRespCrewListMarkup('', $app_id);
+                    $markup = self::getRespAddComentMarkup('', $app_id);
                 }
                 break;
             case 4:
                 if($app->isPayment()){
-                    $markup = self::getRespCompleteAppMarkup('');
+                    $markup = self::getRespAddAddressMarkup('');
                 }else{
                     $markup = self::getRespAddComentMarkup('', $app_id);
                 }
                 break;
             case 5:
                 if($app->isPayment()){
-
-                }else{
-
+                    $markup = self::getRespCrewListMarkup('', $app_id);
                 }
                 break;
             case 6:
+                if($app->isPayment()){
+                    $markup = self::getRespAddComentMarkup('', $app_id);
+                }else{
+                    $markup = self::getRespCompleteAppMarkup('');
+                }
+                break;
+            case 8:
                 if($app->isPayment()){
 
                 }else{
@@ -102,20 +108,18 @@ class Markup
     public static function getRespAddTimeMarkup($text, $error=''): array
     {
         $response['message'] = $text;
-        $response['message'].= "\n\n".$error."Шаг №2. \nВведите <b>время</b>";
+        $response['message'].= "\n\n".$error."Шаг №1. \nВведите <b>время</b>";
         return $response;
     }
     public static function getRespAddAddressMarkup($text, $error=''): array
     {
         $response['message'] = $text;
-        $response['message'].= "\n\n".$error."Шаг №3. \nВведите <b>адрес</b> контактного лица";
+        $response['message'].= "\n\n".$error."Шаг №2. \nВведите <b>адрес</b>";
         return $response;
     }
     public static function getRespAddComentMarkup($text, $app_id): array
     {
-        $applications = new Applications();
-        $app = $applications->find($app_id);
-        $step = $app->isPayment()?4:5;
+        $step = 4;
         $response['message'] = $text;
         $response['message'].= "Шаг №$step.\nВведите <b>Комментарий к заявке</b>  (Шаг можно пропустить)";
         $response['buttons'] = json_encode([
@@ -196,14 +200,9 @@ class Markup
     }
     private static function getRespCrewListMarkup($text, $id): array
     {
-        $applications = new Applications();
-        $app = $applications->find($id);
         $crew_list = [];
         $response['message'] = $text;
-        if($app->isPayment())
-            $response['message'].= "\n\nШаг №3. \nВыберите <b>экипаж</b>";
-        else
-            $response['message'].= "\n\nШаг №4. \nВыберите <b>экипаж</b>";
+        $response['message'].= "\n\nШаг №3. \nВыберите <b>экипаж</b>";
         $crews = new Crew();
         $list = $crews->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
 

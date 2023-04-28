@@ -1,7 +1,9 @@
 <?php
 namespace Models;
+use Helpers\LogHelper;
 use Models\ElementModel as Model;
 class Staff extends Model {
+
     const IBLOCK_ID = 3;
 
     public function getByLogin($tg_login)
@@ -70,27 +72,17 @@ class Staff extends Model {
         return $crew->find($this->getField('CREW'));
     }
 
-    public function startWorkDay()
+    public function startWorkDay($cash_room_id=0)
     {
         $work_days = new CashRoomDay();
         if(!$work_days->isExistsOpeningStarted($this->cash_room()->getId())) {
             $fields['NAME'] = $this->cash_room()->getName() . ". " . date('d.m.Y');
             $properties['STATUS'] = 30;
-            $properties['CASH_ROOM'] = $this->cash_room()->getId();
+            $properties['CASH_ROOM'] = $cash_room_id>0?$cash_room_id:$this->cash_room()->getId();
             $properties['CASH_ROOM_EMPLOYEE'] = $this->getId();
             $properties['DAY'] = date('d.m.Y');
             $fields['PROPERTY_VALUES'] = $properties;
             return $work_days->create($fields);
-        }
-    }
-
-
-    public function endWorkDay()
-    {
-        $work_days = new CashRoomDay();
-        if($work_days->isExistsOpenToday($this->cash_room()->getId())){
-            $day = $work_days->getExistsOpenToday($this->cash_room()->getId());
-            $day->setClosing();
         }
     }
 
@@ -108,5 +100,15 @@ class Staff extends Model {
     public function getCashResp(): Staff
     {
         return $this->where('PROPERTY_ROLE', 11)->first();
+    }
+
+    public function getCashRoomEmployee(): Staff
+    {
+        return $this->where('PROPERTY_ROLE', 2)->first();
+    }
+
+    public function getByChatId($chat_id)
+    {
+        return $this->where('PROPERTY_TG_CHAT_ID', $chat_id)->first();
     }
 }

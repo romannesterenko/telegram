@@ -1,9 +1,11 @@
 <?php
 namespace Models;
+use Api\Sender;
 use Api\Telegram;
 use danog\MadelineProto\Exception;
 use Helpers\ArrayHelper;
 use Helpers\LogHelper;
+use Helpers\StringHelper;
 use Models\ElementModel as Model;
 use Processing\Manager\Markup as ManagerMarkup;
 use Processing\Responsible\Markup as RespMarkup;
@@ -22,7 +24,7 @@ class Applications extends Model {
 
     public function getByManager($manager_id){
         return $this->where('PROPERTY_CREATED_MANAGER', $manager_id)
-            ->where('PROPERTY_STATUS', [3, 4, 15, 16, 17, 25, 44])
+            ->where('PROPERTY_STATUS', [3, 4, 15, 16, 17, 20, 23, 25, 44, 45, 48, 49])
             ->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])
             ->get()
             ->getArray();
@@ -71,6 +73,7 @@ class Applications extends Model {
             case 0:
                 $draft->setField('AGENT_OFF_NAME', $text);
                 $draft->setField('DRAFT_STEP', 1);
+
                 $return_array = ManagerMarkup::getOperationTypeMarkup('', $draft->getField('ID'));
                 break;
             case 1:
@@ -89,14 +92,45 @@ class Applications extends Model {
                 }else {
                     $draft->setField('CONTACT_PHONE', $text);
                     $draft->setField('DRAFT_STEP', 4);
-                    $return_array = ManagerMarkup::getComentMarkup($this->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
+                    if($draft->isPayment()){
+                        $return_array = ManagerMarkup::getRespCashRoomListMarkupInProcess($draft->getField('ID'));
+                    } else {
+                        $return_array = \Processing\Manager\Markup::getRespCashRoomListMarkupInProcess($draft->getField('ID'));
+                    }
                 }
                 break;
             case 4:
-                $draft->setField('MANAGER_COMENT', $text);
-                $draft->setField('DRAFT_STEP', 5);
-                $draft->setReadyToWorkStatus();
-                if($draft->isPayment()) {
+                if(!$draft->isPayment()){
+                    /*$draft->setField('ADDRESS', $text);
+                    $draft->setField('DRAFT_STEP', 5);
+                    $return_array = \Processing\Manager\Markup::getRespCashRoomListMarkupInProcess('', $draft->getField('ID'));*/
+                }
+                break;
+            case 5:
+                    $draft->setField('MANAGER_COMENT', $text);
+                    $draft->setField('DRAFT_STEP', 6);
+                    $draft->setReadyToWorkStatus();
+                    $return_array['message'] = "Заявка №".$draft->getId()." создана";
+                    //Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID'), true), $draft->getField('ID'));
+                    $return_array['buttons'] = json_encode([
+                        'resize_keyboard' => true,
+                        'keyboard' => [
+                            [
+                                [
+                                    'text' => \Settings\Common::getButtonText('manager_app_list')
+                                ],
+                                [
+                                    'text' => \Settings\Common::getButtonText('manager_new_app')
+                                ],
+                            ]
+                        ]
+                    ]);
+                break;
+            case 6:
+                if ($draft->isPayment()) {
+                    $draft->setField('MANAGER_COMENT', $text);
+                    $draft->setField('DRAFT_STEP', 7);
+                    $draft->setReadyToWorkStatus();
                     $return_array['message'] = "Заявка №".$draft->getId()." создана";
                     Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
                     $return_array['buttons'] = json_encode([
@@ -112,9 +146,12 @@ class Applications extends Model {
                             ]
                         ]
                     ]);
-                }else{
+                } else {
+                    $draft->setField('MANAGER_COMENT', $text);
+                    $draft->setField('DRAFT_STEP', 7);
+                    $draft->setReadyToWorkStatus();
                     $return_array['message'] = "Заявка №".$draft->getId()." создана";
-                    Telegram::sendMessageToCollResp($draft->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
+                    Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID'), true), $draft->getField('ID'));
                     $return_array['buttons'] = json_encode([
                         'resize_keyboard' => true,
                         'keyboard' => [
@@ -129,7 +166,7 @@ class Applications extends Model {
                         ]
                     ]);
                 }
-                //$return_array = ManagerMarkup::getCompletedAppMarkup($this->prepareAppDataMessage($draft->getField('ID')));
+
                 break;
         }
         return $return_array;
@@ -141,7 +178,7 @@ class Applications extends Model {
         $return_array = [];
         $needCancel = $this->getNeedCancel($manager_id);
         $needCancel->setField('MANAGER_CANCEL_REASON', $text);
-        $prev_status = $this->getStatus();
+        $prev_status = $needCancel->getStatus();
         $needCancel->setField('STATUS', 6);
         $return_array['message'] = "Заявка №".$needCancel->getField('ID')." успешно отклонена";
         $return_array['buttons'] = json_encode([
@@ -187,7 +224,7 @@ class Applications extends Model {
             case 3:
                 $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')));
                 break;
-            case 4:
+            case 5:
                 $return_array = ManagerMarkup::getComentMarkup($this->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
                 break;
         }
@@ -195,24 +232,24 @@ class Applications extends Model {
     }
 
     /*Отрисовка полей заявки*/
-    public function prepareAppDataMessage($id): string
+    public function prepareAppDataMessage($id, $is_cash_resp=false): string
     {
         $app = $this->find($id);
         $application = $app->getArray();
         $message = "<b>Информация по заявке №".$app->getId()."</b> \n";
+        if($application['PROPERTY_OPERATION_TYPE_VALUE'])
+            $message.= "Тип операции - <b>".$application['PROPERTY_OPERATION_TYPE_VALUE']."</b> \n";
         $message.= "Статус заявки - <b>".$app->getField('STATUS')."</b> \n";
         if($app->getField('AGENT_OFF_NAME'))
             $message.= "Имя контрагента в учете - <b>".$app->getField('AGENT_OFF_NAME')."</b> \n";
-        if($application['PROPERTY_OPERATION_TYPE_VALUE'])
-            $message.= "Тип операции - <b>".$application['PROPERTY_OPERATION_TYPE_VALUE']."</b> \n";
-        if($application['PROPERTY_AGENT_NAME_VALUE'])
-            $message.= "Имя с которым обращаться к контрагенту - <b>".$application['PROPERTY_AGENT_NAME_VALUE']."</b> \n";
-        if($application['PROPERTY_CONTACT_PHONE_VALUE'])
-            $message.= "Номер телефона контрагента - <b>".$application['PROPERTY_CONTACT_PHONE_VALUE']."</b> \n";
-        if($application['PROPERTY_MANAGER_COMENT_VALUE'])
-            $message.= "Комментарий менеджера - <b>".$application['PROPERTY_MANAGER_COMENT_VALUE']."</b> \n";
-        if($application['PROPERTY_SUMM_VALUE'])
-            $message.= "Сумма сделки - <b>".number_format($application['PROPERTY_SUMM_VALUE'], 0, '.', ' ')."</b> \n";
+        if(!$is_cash_resp) {
+            if ($application['PROPERTY_AGENT_NAME_VALUE'])
+                $message .= "Имя с которым обращаться к контрагенту - <b>" . $application['PROPERTY_AGENT_NAME_VALUE'] . "</b> \n";
+            if ($application['PROPERTY_CONTACT_PHONE_VALUE'])
+                $message .= "Номер телефона контрагента - <b>" . $application['PROPERTY_CONTACT_PHONE_VALUE'] . "</b> \n";
+        }
+        /*if($application['PROPERTY_SUMM_VALUE'])
+            $message.= "Сумма сделки - <b>".number_format($application['PROPERTY_SUMM_VALUE'], 0, '.', ' ')."</b> \n";*/
         if($app->getField('CASH_ROOM')>0) {
             $message .= "Касса - <b>" . $app->cash_room()->getName() . "</b> \n";
         }
@@ -223,6 +260,8 @@ class Applications extends Model {
         if($application['PROPERTY_CREW_VALUE']>0) {
             $message .= "Экипаж - <b>" . $app->crew()->getName() . "</b> \n";
         }
+        if($application['PROPERTY_MANAGER_COMENT_VALUE'])
+            $message.= "Комментарий менеджера - <b>".$application['PROPERTY_MANAGER_COMENT_VALUE']."</b> \n";
         if($app->getField('RESP_COMENT'))
             $message.= "Комментарий ответственного - <b>".$app->getField('RESP_COMENT')."</b> \n";
         return $message;
@@ -250,7 +289,7 @@ class Applications extends Model {
 
     public function getToWorkAppsForCashResp()
     {
-        return $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 8)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_RESP_STEP', false)->select(["IBLOCK_ID", 'NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])->buildQuery()->getArray();
     }
 
     public function setToManagerCancelComent()
@@ -321,12 +360,13 @@ class Applications extends Model {
 
     public function getInProcessByResp()
     {
-        return (int)$this->where('PROPERTY_STATUS', 15)->where('PROPERTY_OPERATION_TYPE', 8)->where('!RESP_STEP', false)->first()->getField('ID');
+        return (int)$this->where('PROPERTY_STATUS', 15)->where('!RESP_STEP', false)->first()->getField('ID');
+        //return (int)$this->where('PROPERTY_STATUS', 15)->where('PROPERTY_OPERATION_TYPE', 8)->where('!RESP_STEP', false)->first()->getField('ID');
     }
 
     public function getInProcessByCollResp()
     {
-        return (int)$this->where('PROPERTY_STATUS', 15)->where('PROPERTY_OPERATION_TYPE', 7)->where('!RESP_STEP', false)->first()->getField('ID');
+        return (int)$this->where('PROPERTY_STATUS', 15)->where('!RESP_STEP', false)->first()->getField('ID');
     }
 
     public function setFieldToInProcess($app_id, $text){
@@ -334,11 +374,16 @@ class Applications extends Model {
         $return_array = [];
         switch ($app->getField('RESP_STEP')){
             case 0:
-                $text = trim(str_replace(" ","",$text));
-                if (!is_numeric($text)) {
-                    $return_array = RespMarkup::getRespAddSumMarkup("Сумма должна быть числовым значением\n");
+                if($app->isPayment()) {
+                    $text = trim(str_replace(" ", "", $text));
+                    if (!is_numeric($text)) {
+                        $return_array = RespMarkup::getRespAddSumMarkup("Сумма должна быть числовым значением\n", $app_id);
+                    } else {
+                        $app->setField('SUMM', $text);
+                        $app->setField('RESP_STEP', 1);
+                    }
                 } else {
-                    $app->setField('SUMM', $text);
+                    $app->setField('TIME', $text);
                     $app->setField('RESP_STEP', 1);
                 }
                 break;
@@ -348,22 +393,68 @@ class Applications extends Model {
 
                     } else {
                         $text = trim(str_replace(" ","",$text));
-                        if (!is_numeric($text)) {
-                            $return_array = RespMarkup::getRespAddSumMarkup("Сумма должна быть числовым значением\n", $app->getId());
-                        } else {
-                            $app->setField('SUMM', $text);
-                            $app->setField('RESP_STEP', 2);
+                        if ($app->getField('SUM_ENTER_STEP')==1) {
+                            if (!is_numeric($text)) {
+                                $return_array['message'] = "Сумма должна быть числовым значением\nПовторите ввод суммы";
+                            } else {
+                                $app->setField('SUMM', $text);
+                                $app->setSumMultiple($text);
+                                $app->setField('SUM_ENTER_STEP', 0);
+                                $return_array['message'] = "Данные записаны. Есть сумма в другой валюте?";
+                                $return_array['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => [
+                                        [
+                                            [
+                                                'text' => 'Нет. Продолжить выполнение',
+                                                "callback_data" => "CompleteAddSum_".$app->getId()
+                                            ],
+                                            [
+                                                'text' => 'Да. Ввести еще сумму',
+                                                "callback_data" => "AddMoreSum_".$app->getId()
+                                            ],
+                                        ]
+                                    ]
+                                ]);
+                            }
                         }
                     }
                 } else {
-                    $app->setField('TIME', $text);
+                    $app->setField('ADDRESS', $text);
                     $app->setField('RESP_STEP', 2);
                 }
                 break;
             case 2:
                 if($app->isPayment()) {
-                    $app->setField('ADDRESS', $text);
-                    $app->setField('RESP_STEP', 3);
+                    if($app->hasBeforeApps()){
+                        $text = trim(str_replace(" ","",$text));
+                        if ($app->getField('SUM_ENTER_STEP')==1) {
+                            if (!is_numeric($text)) {
+                                $return_array['message'] = "Сумма должна быть числовым значением\nПовторите ввод суммы";
+                            } else {
+                                $app->setField('SUMM', $text);
+                                $app->setSumMultiple($text);
+                                $app->setField('SUM_ENTER_STEP', 0);
+                                $return_array['message'] = "Данные записаны. Есть сумма в другой валюте?";
+                                $return_array['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => [
+                                        [
+                                            [
+                                                'text' => 'Нет. Продолжить выполнение',
+                                                "callback_data" => "CompleteAddSum_".$app->getId()
+                                            ],
+                                            [
+                                                'text' => 'Да. Ввести еще сумму',
+                                                "callback_data" => "AddMoreSum_".$app->getId()
+                                            ],
+                                        ]
+                                    ]
+                                ]);
+                            }
+                        }
+                    }
+
                 } else {
                     $app->setField('ADDRESS', $text);
                     $app->setField('RESP_STEP', 3);
@@ -372,53 +463,53 @@ class Applications extends Model {
             case 3:
                 if($app->isPayment()) {
                     if($app->hasBeforeApps()) {
-                        $app->setField('RESP_COMENT', $text);
+                        $app->setField('TIME', $text);
                         $app->setField('RESP_STEP', 4);
-                        $app->setCompleteFromResp();
                     }else{
-                        $app->setField('ADDRESS', $text);
+                        $app->setField('TIME', $text);
                         $app->setField('RESP_STEP', 4);
                     }
                 } else {
+                    $app->setStatus(25);
+                    $app->setField('RESP_STEP', 4);
+                    $return_array['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем подтверждения экипажем.";
+                    $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), $app->crew()->getId(), 'new_app');
+                    Telegram::sendMessageToCollector($app->crew()->getId(), $collector_markup);
 
+                    $manager_text = "По заявке №".$app->getId()." планируемое время забора от контрагента ".$app->getField('AGENT_OFF_NAME')." - ".$app->getTime();
+                    Telegram::sendCommonMessageToManager($manager_text);
+                    Telegram::sendMessageToResp($manager_text);
+
+                    $contact_message = "По заявке №".$app->getId()." планируемое время забора  - ".$app->getTime().". Планируемое место забора - ".$app->getAddress();
+
+                    $return_array['buttons'] = json_encode([
+                        'resize_keyboard' => true,
+                        'keyboard' => [
+                            [
+                                [
+                                    'text' => "Заявки в работу"
+                                ],
+                                [
+                                    'text' => Common::getButtonText('resp_apps_list_new')
+                                ]
+                            ]
+                        ]
+                    ]);
+                    try {
+                        \Api\Sender::send($app, $contact_message);
+                    }catch (Exception $exception){
+
+                    }
                 }
                 break;
             case 4:
                 if($app->isPayment()) {
                     if($app->hasBeforeApps()) {
-
+                        $app->setField('ADDRESS', $text);
+                        $app->setField('RESP_STEP', 5);
                     }else{
-                        $app->setField('SUMM', $text);
-                        $app->setField('RESP_STEP', 6);
-                        $app->setStatus(45);
-                        $coll_resp_markup['message'] = "Заявка на выдачу №".$app->getId()."\n";
-                        $coll_resp_markup['message'].= "Для продолжения выполнения заявки выберите экипаж";
-                        $crews = new Crew();
-                        $crew_list = [];
-                        $list = $crews->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
-
-                        if (ArrayHelper::checkFullArray($list)) {
-
-                            foreach ($list as $crew) {
-                                $crew_list[] = [
-                                    'text' => $crew['NAME'],
-                                    "callback_data" => "setCrewToApp_".$app->getId().'_'.$crew['ID']
-
-                                ];
-                            }
-                        }
-
-                        $buttons = json_encode([
-                            'resize_keyboard' => true,
-                            'inline_keyboard' => [$crew_list]
-                        ]);
-                        Telegram::sendMessageToCollResp($coll_resp_markup['message'], 0, $buttons);
-
-                        $return_array['message'] = "Заявка оформлена и ожидает установки экипажа ответственным за инкассацию";
-                        $cash_room_cash = $app->cash_room()->getCash();
-                        if($cash_room_cash['free']<$app->getSum()){
-                            $return_array['message']="Свободная сумма в кассе меньше суммы в заявке\n\n".$return_array['message'];
-                        }
+                        $app->setField('ADDRESS', $text);
+                        $app->setField('RESP_STEP', 5);
                     }
 
                 } else {
@@ -429,53 +520,58 @@ class Applications extends Model {
                     $return_array['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем установки кассы ответственным за учет.";
                     $cash_resp_markup = CollRespMarkup::getNeedSetCashRoomByAppMarkup($app->getId());
                     Telegram::sendMessageToCashResp($cash_resp_markup);
-
                 }
                 break;
             case 5:
                 if($app->isPayment()) {
-                    $text = trim(str_replace(" ","",$text));
-                    if (!is_numeric($text)) {
-                        $return_array = RespMarkup::getRespAddSumMarkup("Сумма должна быть числовым значением\n", $app->getId());
-                    } else {
-                        if($app->hasBeforeApps()) {
-                            $app->setField('SUMM', $text);
-                            $app->setField('RESP_STEP', 6);
-                            $app->setStatus(45);
-                            $coll_resp_markup['message'] = "Заявка на выдачу №".$app->getId()."\n";
-                            $coll_resp_markup['message'].= "Для продолжения выполнения заявки выберите экипаж";
-                            $crews = new Crew();
-                            $crew_list = [];
-                            $list = $crews->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
 
-                            if (ArrayHelper::checkFullArray($list)) {
+                } else {
 
-                                foreach ($list as $crew) {
-                                    $crew_list[] = [
-                                        'text' => $crew['NAME'],
-                                        "callback_data" => "setCrewToApp_".$app->getId().'_'.$crew['ID']
+                }
+                break;
+            case 6:
+                if($app->isPayment()) {
+                    $app->setStatus(25);
+                    $app->setField('RESP_STEP', 7);
+                    $return_array['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем подтверждения экипажем.";
+                    $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), $app->crew()->getId(), 'new_app');
+                    Telegram::sendMessageToCollector($app->crew()->getId(), $collector_markup);
 
-                                    ];
-                                }
-                            }
+                    $manager_text = "По заявке №".$app->getId()." планируемое время забора от контрагента ".$app->getField('AGENT_OFF_NAME')." - ".$app->getTime();
+                    Telegram::sendCommonMessageToManager($manager_text);
+                    Telegram::sendMessageToResp($manager_text);
 
-                            $buttons = json_encode([
-                                'resize_keyboard' => true,
-                                'inline_keyboard' => [$crew_list]
-                            ]);
-                            Telegram::sendMessageToCollResp($coll_resp_markup['message'], 0, $buttons);
-                            $return_array['message'] = "Заявка оформлена и ожидает установки экипажа ответственным за инкассацию";
-                        }else{
+                    $contact_message = "По заявке №".$app->getId()." планируемое время забора  - ".$app->getTime().". Планируемое место забора - ".$app->getAddress();
 
-                        }
+                    $return_array['buttons'] = json_encode([
+                        'resize_keyboard' => true,
+                        'keyboard' => [
+                            [
+                                [
+                                    'text' => "Заявки в работу"
+                                ],
+                                [
+                                    'text' => Common::getButtonText('resp_apps_list_new')
+                                ]
+                            ]
+                        ]
+                    ]);
+                    try {
+                        \Api\Sender::send($app, $contact_message);
+                    }catch (Exception $exception){
+
                     }
                 } else {
 
                 }
                 break;
         }
-        if(!ArrayHelper::checkFullArray($return_array))
-            $return_array = RespMarkup::getMarkupByResp($app_id);
+        if(!ArrayHelper::checkFullArray($return_array)) {
+            if($app->isPayment()&&$app->getField('RESP_STEP')<2)
+                $return_array = RespMarkup::getMarkupByResp($app_id);
+            else
+                $return_array = CollRespMarkup::getMarkupByResp($app_id);
+        }
         return $return_array;
     }
 
@@ -513,16 +609,14 @@ class Applications extends Model {
         return $this->where('PROPERTY_STATUS', [20, 26, 23])->where('PROPERTY_CASH_ROOM', $cash_room_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
     }
 
-    public function getRecieveAppsForCRE($employee)
+    public function getRecieveAppsForCRE()
     {
-        $cash_room_id = $employee->getField('CASH_ROOM');
-        return $this->where('PROPERTY_STATUS', [20, 26])->where('PROPERTY_OPERATION_TYPE', 7)->where('PROPERTY_CASH_ROOM', $cash_room_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [20, 26])->where('PROPERTY_OPERATION_TYPE', 7)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
     }
 
-    public function getPaymentsAppsForCRE($employee)
+    public function getPaymentsAppsForCRE()
     {
-        $cash_room_id = $employee->getField('CASH_ROOM');
-        return $this->where('PROPERTY_STATUS', [23, 52])->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_CASH_ROOM', $cash_room_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [23, 52])->where('PROPERTY_OPERATION_TYPE', 8)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
     }
 
     public function setStatus($int)
@@ -548,7 +642,14 @@ class Applications extends Model {
     public function setCrew($crew_id)
     {
         $this->setField('CREW', $crew_id);
-        $this->order()->setCrew($crew_id);
+        $orders = $this->order();
+        if(ArrayHelper::checkFullArray($orders)){
+            foreach ($orders as $order){
+                $ord_obj = new Order();
+                $ord_obj->find($order['ID'])->setField('CREW', $crew_id);
+            }
+        }
+        //$this->order()->setCrew($crew_id);
     }
 
     public function getAppsInDeliveryByCrew($crew_id)
@@ -558,25 +659,30 @@ class Applications extends Model {
 
     public function setComplete()
     {
-
-        $this->order()->setComplete();
+        $orders = new Order();
+        $order_list = $orders->where('PROPERTY_APP', $this->getId())->buildQuery()->getArray();
+        if(ArrayHelper::checkFullArray($order_list)){
+            foreach($order_list as $order){
+                $temp_orders = new Order();
+                $temp_orders->find($order['ID'])->setComplete();
+            }
+        }
+        //$this->order()->setComplete();
         $this->setStatus(27);
         if (!$this->isPayment()){
             if($this->isBeforeApp()){
                 $main_appl = new Applications();
                 $last = new Applications();
-
                 $main_app = $main_appl->where('PROPERTY_GIVE_AFTER', $this->getId())->where('PROPERTY_STATUS', 44)->first();
                 $last_apps = $last->whereNot('PROPERTY_STATUS', 27)->where('ID', $main_app->getField('GIVE_AFTER'))->get()->getArray();
                 $cash_resp_markup['message'] = "Заявка №".$main_app->getId()."\nВыполнена заявка, указанная как необходимая для выполнения текущей.\n";
                 $cash_resp_markup['message'].= "Информация по выполненной заявке:\n";
-                $cash_resp_markup['message'].= "Заявка № <b>".$this->getId()."</b>, на сумму <b>".number_format($this->getSum(), 0, '', ' ')."</b>. Контрагент - <b>".$this->getField('AGENT_NAME')."</b>\n\n";
+                $cash_resp_markup['message'].= "Заявка № <b>".$this->getId()."</b>. Контрагент - <b>".$this->getField('AGENT_NAME')."</b>\n\n";
                 if(ArrayHelper::checkFullArray($last_apps)){
-
                     $cash_resp_markup['message'].= "Список оставшихся заявок для выполнения текущей заявки\n";
                     foreach ($last_apps as $last_app) {
                         $cash_resp_markup['message'] .= "\n===================\n";
-                        $cash_resp_markup['message'] .= "Заявка №" . $last_app['ID'] . ". Сумма " . number_format($last_app['PROPERTY_SUMM_VALUE'], 0, '', ' ') . ". Контрагент - " . $last_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
+                        $cash_resp_markup['message'] .= "Заявка №" . $last_app['ID'] . ". Контрагент - " . $last_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
                     }
                     $cash_resp_markup['buttons'] = json_encode([
                         'resize_keyboard' => true,
@@ -621,6 +727,8 @@ class Applications extends Model {
     public function setFailed()
     {
         $this->setStatus(52);
+
+
     }
 
     public function isFailed(): bool
@@ -703,10 +811,16 @@ class Applications extends Model {
         $this->setField('ORDER', $order_id);
     }
 
-    public function order(): Order
+    public function order()
     {
         $orders = new Order();
-        return $orders->find((int)$this->getField('ORDER'));
+        return $orders->where("PROPERTY_APP", $this->getId())->buildQuery()->getArray();
+    }
+
+    public function currency(): Currency
+    {
+        $currency = new Currency();
+        return $currency->find((int)$this->getField('CURRENCY'));
     }
 
     public function setBeforeApp($app_id)
@@ -738,6 +852,26 @@ class Applications extends Model {
     public function setReadyToWorkStatus()
     {
         $this->setField('STATUS', 48, true);
+        if ((int)$this->getField('RESP_STEP')==0){
+            if($this->isPayment()){
+                Telegram::sendMessageToResp($this->prepareAppDataMessage($this->getField('ID'), true), $this->getField('ID'));
+                $contact_message = "По заявке №".$this->getId()." планируется операция по выдаче.";
+            } else {
+                Telegram::sendMessageToCollResp($this->prepareAppDataMessage($this->getField('ID')), $this->getField('ID'));
+                $message_to_resp = "По заявке №".$this->getId()." планируется операция по забору.";
+                $message_to_resp.= "\nКонтрагент - ".$this->getField('AGENT_OFF_NAME');
+                $message_to_resp.= "\nМенеджер - ".$this->manager()->getName();
+                if($this->getField('MANAGER_COMENT'))
+                    $message_to_resp.= "\nКомментарий - ".$this->getField('MANAGER_COMENT');
+                Telegram::sendMessageToResp($message_to_resp);
+                $contact_message = "По заявке №".$this->getId()." планируется операция по забору.";
+            }
+            try {
+                \Api\Sender::send($this, $contact_message);
+            } catch (Exception $exception){
+
+            }
+        }
     }
 
 
@@ -797,5 +931,81 @@ class Applications extends Model {
     {
         $this->resetFilter();
         return $this->where('PROPERTY_CREW', $crew->getId())->where('PROPERTY_STATUS', 55)->first();
+    }
+
+    public function updateName()
+    {
+        $el = new \CIBlockElement;
+        $name = "Заявка от ".$this->getField('AGENT_OFF_NAME').". №".$this->getId();
+        $el->Update($this->getId(), ['NAME' => $name]);
+    }
+
+    public function isAllowToCancelByManager():bool
+    {
+        $not_allow_statuses = [20];
+        return !in_array($this->getStatus(), $not_allow_statuses);
+    }
+
+    public function setCurrency($param)
+    {
+        $old_values = $this->getField('CURRENCY');
+        $new_values = [];
+        if (ArrayHelper::checkFullArray($old_values)){
+            foreach ($old_values as $old_value)
+                if($old_value>0)
+                    $new_values[] = ["VALUE" => $old_value, "DESCRIPTION"=>""];
+        }
+        $new_values[] = ["VALUE" => $param, "DESCRIPTION"=>""];
+        $this->setField('CURRENCY', $new_values);
+    }
+
+    public function setSumMultiple($param)
+    {
+        $old_values = $this->getField('SUMM');
+        $new_values = [];
+        if (ArrayHelper::checkFullArray($old_values)){
+            foreach ($old_values as $old_value)
+                if($old_value>0)
+                    $new_values[] = ["VALUE" => $old_value, "DESCRIPTION"=>""];
+        }
+        $new_values[] = ["VALUE" => $param, "DESCRIPTION"=>""];
+        $this->setField('SUMM', $new_values);
+    }
+
+    public function setRealSumMultiple(int $param)
+    {
+        $old_values = $this->getField('REAL_SUM');
+        $new_values = [];
+        if (ArrayHelper::checkFullArray($old_values)){
+            foreach ($old_values as $old_value)
+                if($old_value>0)
+                    $new_values[] = ["VALUE" => $old_value, "DESCRIPTION"=>""];
+        }
+        $new_values[] = ["VALUE" => $param, "DESCRIPTION"=>""];
+        $this->setField('REAL_SUM', $new_values);
+    }
+
+    public function getCash()
+    {
+        $cash_apps = new Applications();
+        $app = $cash_apps->find($this->getId());
+        $values = $app->getField('SUMM');
+        if(ArrayHelper::checkFullArray($app->getField('REAL_SUM')))
+            $values = $app->getField('REAL_SUM');
+        $currencies = $app->getField('CURRENCY');
+        $array = [];
+        if (ArrayHelper::checkFullArray($values)&&ArrayHelper::checkFullArray($currencies)) {
+            foreach ($values as $id => $sum) {
+                $currencies_o = new Currency();
+                $currency = $currencies_o->find($currencies[$id]);
+                $array[] = StringHelper::formatSum($sum)." ".$currency->getField("CODE");
+            }
+        }
+        return $array;
+    }
+
+    public function getCurrencies()
+    {
+        return $this->getField('CURRENCY');
     }
 }

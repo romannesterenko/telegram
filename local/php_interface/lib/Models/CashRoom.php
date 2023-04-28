@@ -42,43 +42,71 @@ class CashRoom extends Model {
 
     public function getCash(): array
     {
-        $cash_room_days = new CashRoomDay();
         $cash_room_days_open = new CashRoomDay();
-        $orders = new Order();
-        $start_cash = $cash_room_days->getCashByCashRoom($this->getField('ID'));
-        $return_array = [
-            'all' => 0,
-            'reserve' => 0,
-            'free' => 0
-        ];
+        $cash_currencies = $this->getField('CURRENCY');
+        $crdo = $cash_room_days_open->getExistsOpenToday($this->getField('ID'));
+        if ($crdo->getId()>0) {
+            $start_cash = $crdo->getField('START_SUM');
+        } else {
+            $closed_crds = new CashRoomDay();
+            $crdo = $closed_crds->getLastClosedFromCashRoom($this->getField('ID'));
+            $start_cash = $crdo->getField('START_SUM');
+        }
+        $start_cash_array = [];
+        foreach ($start_cash as $i => $c){
+            $start_cash_array[$cash_currencies[$i]] = $c;
+        }
         if($cash_room_days_open->isExistsOpenToday($this->getField('ID'))) {
-            $order_list = $orders->getByDay($this->getNearestWorkDay()->getId());
-            $return_array['all'] = $start_cash;
-            if (ArrayHelper::checkFullArray($order_list->getArray())) {
-                foreach ($order_list->getArray() as $order) {
-                    $sum = (int)$order['PROPERTY_SUM_FACT_VALUE'] > 0 ? (int)$order['PROPERTY_SUM_FACT_VALUE'] : (int)$order['PROPERTY_SUM_VALUE'];
-                    if ($order['PROPERTY_STATUS_ENUM_ID'] == 38) {
-                        if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 28) {
-                            $return_array['reserve'] += $sum;
-                        }
-                    } elseif ($order['PROPERTY_STATUS_ENUM_ID'] == 39 || $order['PROPERTY_STATUS_ENUM_ID'] == 50) {
-                        if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 29) {
-                            $return_array['all'] += $sum;
-                        }
-                        if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 28) {
-                            $return_array['all'] -= $sum;
+            if(ArrayHelper::checkFullArray($cash_currencies)){
+                foreach ($cash_currencies as $currency_id) {
+                    $start_cash_ = $start_cash_array[$currency_id];
+                    $cur_obj = new Currency();
+                    $current_currency = $cur_obj->find($currency_id);
+                    $return_array[$currency_id] = [
+                        'currency_title' => $current_currency->getField('NAME'),
+                        'currency_code' => $current_currency->getField('CODE'),
+                        'all' => $start_cash_,
+                        'reserve' => 0,
+                        'free' => 0
+                    ];
+                    $orders = new Order();
+                    $order_list = $orders->getByDayAndCurrency($this->getNearestWorkDay()->getId(), $currency_id);
+                    if (ArrayHelper::checkFullArray($order_list->getArray())) {
+                        foreach ($order_list->getArray() as $order) {
+                            $sum = (int)$order['PROPERTY_SUM_FACT_VALUE'] > 0 ? (int)$order['PROPERTY_SUM_FACT_VALUE'] : (int)$order['PROPERTY_SUM_VALUE'];
+                            if ($order['PROPERTY_STATUS_ENUM_ID'] == 38) {
+                                if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 28) {
+                                    $return_array[$currency_id]['reserve'] += $sum;
+                                }
+                            } elseif ($order['PROPERTY_STATUS_ENUM_ID'] == 39 || $order['PROPERTY_STATUS_ENUM_ID'] == 50) {
+                                if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 29) {
+                                    $return_array[$currency_id]['all'] += $sum;
+                                }
+                                if ($order['PROPERTY_OPERATION_TYPE_ENUM_ID'] == 28) {
+                                    $return_array[$currency_id]['all'] -= $sum;
+                                }
+                            }
+
                         }
                     }
-
+                    $return_array[$currency_id]['free'] = $return_array[$currency_id]['all'] - $return_array[$currency_id]['reserve'];
                 }
             }
-            $return_array['free'] = $return_array['all'] - $return_array['reserve'];
         } else {
-            $return_array = [
-                'all' => $start_cash,
-                'reserve' => 0,
-                'free' => $start_cash
-            ];
+            if(ArrayHelper::checkFullArray($cash_currencies)) {
+                foreach ($cash_currencies as $currency_id) {
+                    $start_cash_ = $start_cash_array[$currency_id];
+                    $cur_obj = new Currency();
+                    $current_currency = $cur_obj->find($currency_id);
+                    $return_array[$currency_id] = [
+                        'currency_title' => $current_currency->getField('NAME'),
+                        'currency_code' => $current_currency->getField('CODE'),
+                        'all' => $start_cash_,
+                        'reserve' => 0,
+                        'free' => 0
+                    ];
+                }
+            }
         }
         return $return_array;
     }
@@ -94,11 +122,26 @@ class CashRoom extends Model {
         }
     }
 
+
+
     public function checkClosedSum($cash_room_id, $sum): bool
     {
         $cash_room = $this->find($cash_room_id);
         $cash = $cash_room->getCash();
         if ((int)$sum == (int)$cash['free']) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+
+    public function checkClosedSumCurrency($cash_room_id, $currency_id, $sum): bool
+    {
+        $cash_room = $this->find($cash_room_id);
+        $cash = $cash_room->getCash();
+        if ((int)$sum == (int)$cash[$currency_id]['free']) {
             return true;
         } else {
             return false;
@@ -113,5 +156,21 @@ class CashRoom extends Model {
             return $today;
         else
             return $crd->getLastByCashRoom($this->getId());
+    }
+
+    public function getCurrencies()
+    {
+        return $this->getField('CURRENCY');
+    }
+    public static function isClosed($cr_id): bool
+    {
+        $crd = new CashRoomDay();
+        $today = $crd->getExistsOpenToday($cr_id)->getArray();
+        return (int)$today['ID']==0;
+    }
+
+    public function getCurencies()
+    {
+        return $this->getField('CURRENCY');
     }
 }

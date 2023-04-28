@@ -3,6 +3,7 @@ namespace Processing\Collector;
 use Api\Mattermost;
 use Api\Telegram;
 use Models\Applications;
+use Models\Order;
 use Processing\Responsible\Markup as RespMarkup;
 use Settings\Common;
 
@@ -12,22 +13,6 @@ class Buttons
     {
         $message = Common::getWrongCallBackData();
         $array_data = explode('_', $data);
-        $response['buttons'] = json_encode([
-            'resize_keyboard' => true,
-            'keyboard' => [
-                [
-                    [
-                        'text' => 'Выдача'
-                    ],
-                    [
-                        'text' => 'Забор'
-                    ],
-                    [
-                        'text' => 'Заявки в доставке'
-                    ]
-                ]
-            ]
-        ]);
         switch ($array_data[0]){
             //Кнопка экипажу "Взять в работу"
             case 'AllowAppByCrew':
@@ -40,13 +25,19 @@ class Buttons
                         $app->setCrew((int)$array_data[2]);
                         //Экипаж одобрил заявку и ставим статус "Назначена"
                         $app->setStatus(23);
-
                         if ($app->isPayment()) {
-                            $message = "Заявка принята в работу. \nЗаберите сумму в размере - <b>" . number_format($app->getSum(), '0', '.', ' ') . "</b> в точке выдачи - <b>" . $app->cash_room()->getName()."</b>";
+                            $order = new Order();
+                            $order->createFromAppID($app->getId());
+                            $message = "Заявка принята в работу. \nЗаберите деньги в точке выдачи - <b>" . $app->cash_room()->getName()."</b> и отвезите по адресу <b>" . $app->getField('ADDRESS')."</b>\n";
+                            $message.= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
+                            $message.= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
+                            $response['buttons'] = Buttons::getCommonButtons($app->crew()->getId());
                         } else {
-                            $message = "Заявка №".$app->getId()." принята в работу. \nЗаберите сумму в размере <b>".number_format($app->getSum(), 0, '', ' ')."</b>, назначенное время - <b>".$app->getField('TIME')."</b>, по адресу - <b>" . $app->getField('ADDRESS')."</b>, и отвезите в кассу <b>".$app->cash_room()->getName()."</b>";
-                            $contact_message = "Заявка №".$app->getId()."\nК вам выехал экипаж инкассаторов для забора денег.";
-                            \Api\Sender::send($app, $contact_message);
+                            $message = "Заявка №".$app->getId()." принята в работу. \nЗаберите деньги в  <b>".$app->getField('TIME')."</b>, по адресу <b>" . $app->getField('ADDRESS')."</b>, и отвезите в кассу <b>".$app->cash_room()->getName()."</b>\n";
+                            $message.= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
+                            $message.= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
+                            /*$contact_message = "Заявка №".$app->getId()."\nК вам выехал экипаж инкассаторов для забора денег.";
+                            \Api\Sender::send($app, $contact_message);*/
                             $response['buttons'] = json_encode([
                                 'resize_keyboard' => true,
                                 'inline_keyboard' => [
@@ -80,11 +71,10 @@ class Buttons
                         $message = "Деньги забраны. Отвезите деньги в кассу - " . $app->cash_room()->getName();
                         //сообщения менеджеру и ответственному об изменении статуса
                         $markup['message'] = "Информация по заявке №" . $app->getId() . "\n";
-                        $markup['message'] .= "Экипаж <b>" . $app->crew()->getName() . "</b> забрал деньги по адресу <b>" . $app->getField('ADDRESS') . "</b> и везет их в кассу <b>" . $app->cash_room()->getName() . "</b>\n";
-                        Telegram::sendMessageToManager($markup, (int)$array_data[1]);
-                        Telegram::sendMessageToCollResp($markup['message']);
-                        $contact_message = "Заявка №".$app->getId()." выполнена. Спасибо за работу";
-                        \Api\Sender::send($app, $contact_message);
+                        $markup['message'] .= "Деньги от контрагента <b>" . $app->getField('AGENT_OFF_NAME') . "</b> в доставке\n";
+                        Telegram::sendCommonMessageToManager($markup['message']);
+                        Telegram::sendMessageToResp($markup['message']);
+                        $response['buttons'] = Buttons::getCommonButtons($app->crew()->getId());
                     }
                 }
                 break;
@@ -121,14 +111,12 @@ class Buttons
                         $message = \Settings\Common::getWrongAppActionText();
                     } else {
                         $app->setComplete();
-                        $markup['message'] = "Заявка №" . (int)$array_data[1] . " была успешно выполнена";
-                        Telegram::sendMessageToManager($markup, (int)$array_data[1]);
-                        if($app->isPayment())
-                            Telegram::sendMessageToResp($markup['message']);
-                        else
-                            Telegram::sendMessageToCollResp($markup['message']);
+                        $markup['message'] = $app->getField("AGENT_OFF_NAME").". №" . (int)$array_data[1] . ". Заявка выполнена";
 
+                        Telegram::sendMessageToManager($markup, (int)$array_data[1]);
+                        \Api\Sender::send($app, $markup['message']);
                         $message = "Заявка №" . $app->getID() . " выполнена";
+                        $response['buttons'] = Buttons::getCommonButtons($app->crew()->getId());
                     }
                 }
                 break;
@@ -142,15 +130,6 @@ class Buttons
                     } else {
                         $message = "Деньги не переданы. Введите причину невозможности передачи денег";
                         $app->setStatus(55);
-                        /*$app->setFailed();
-                        $markup['message'] = "Заявка №" . $app->getID() . " не выполнена. Экипаж <b>".$app->crew()->getName()."</b> не передал сумму контрагенту <b>".$app->getField('AGENT_NAME')."</b> и везет деньги обратно в кассу <b>".$app->cash_room()->getName()."</b>";
-                        //$message = "Заявка №" . $app->getID() . " не выполнена. Экипаж <b>".$app->crew()->getName()."</b> не передал сумму контрагенту <b>".$app->getField('AGENT_NAME')."</b> и везет деньги обратно в кассу <b>".$app->cash_room()->getName()."</b>";
-                        $message = "Заявка №" . (int)$array_data[1] . " не была выполнена. Отвезите средства в кассу <b>".$app->cash_room()->getName()."</b>";
-                        Telegram::sendMessageToManager($markup, (int)$array_data[1]);
-                        if($app->isPayment())
-                            Telegram::sendMessageToResp($markup['message']);
-                        else
-                            Telegram::sendMessageToCollResp($markup['message']);*/
                     }
                 }
                 break;
@@ -167,7 +146,9 @@ class Buttons
                         } elseif ($app->getStatus()==23) {
                             $message = "Заявка №".$app->getId().". Выдача\nЗабрать сумму в размере <b>".number_format($app->getSum(), 0, '', ' ')."</b> в точке выдачи - ".$app->cash_room()->getName();
                         } elseif ($app->getStatus()==20) {
-                            $message.= "Отвезите сумму в размере - <b>".number_format($app->getRealSum(), 0, '.', ' ')."</b> по адресу <b>".$app->getAddress()."</b>\n";
+                            $message.= "Отвезите деньги по адресу <b>".$app->getAddress()."</b>\n";
+                            $message.= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
+                            $message.= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
                             $response['buttons'] = json_encode([
                                 'resize_keyboard' => true,
                                 'inline_keyboard' => [
@@ -186,7 +167,11 @@ class Buttons
                         }
                     } else {
                         if($app->getStatus()==23){
-                            $message.= "Заберите сумму в размере <b>".number_format($app->getSum(), 0, '', ' ')."</b>, назначенное время - <b>".$app->getField('TIME')."</b>, по адресу - <b>" . $app->getField('ADDRESS')."</b>, и отвезите в кассу <b>".$app->cash_room()->getName()."</b>";
+                            $message.= "Заберите сумму в размере <b>".number_format($app->getSum(), 0, '', ' ')."</b>, назначенное время - <b>".$app->getField('TIME')."</b>, по адресу - <b>" . $app->getField('ADDRESS')."</b>, и отвезите в кассу <b>".$app->cash_room()->getName()."</b>\n";
+                            $message.= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
+                            $message.= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
+                            if($app->getField('RESP_COMENT'))
+                                $message.= "Комментарий ответственного - ".$app->getField('RESP_COMENT')."\n";
                             $response['buttons'] = json_encode([
                                 'resize_keyboard' => true,
                                 'inline_keyboard' => [
@@ -213,5 +198,23 @@ class Buttons
         }
         $response['message'] = $message;
         return $response;
+    }
+
+    public static function getCommonButtons($crew_id)
+    {
+        $buttons_array = [];
+        $applications = new Applications();
+        $list = $applications->getPaymentsAppsByCrew($crew_id);
+        $buttons_array[] = ['text' => 'Выдача ('.count($list).')'];
+        $applications = new Applications();
+        $list1 = $applications->getGiveAppsByCrew($crew_id);
+        $buttons_array[] = ['text' => 'Забор ('.count($list1).')'];
+        $applications = new Applications();
+        $list2 = $applications->getAppsInDeliveryByCrew($crew_id);
+        $buttons_array[] = ['text' => 'В доставке ('.count($list2).')'];
+        return json_encode([
+            'resize_keyboard' => true,
+            'keyboard' => [$buttons_array]
+        ]);
     }
 }

@@ -1,5 +1,6 @@
 <?php
 namespace Processing\CashRoomEmployee;
+use Helpers\StringHelper;
 use Models\Applications;
 use Models\CashRoom;
 use Models\CashRoomDay;
@@ -35,12 +36,14 @@ class Markup
             if($cash_room_days->isExistsOpenToday($cash_room->getId())) {
                 $status = "Открыта";
             }
+            $message .= "<b>" . $cash_room->getName() . " (".$status.")</b>\n\n";
             $cash = $cash_room->getCash();
-            $message .= "<b>" . $cash_room->getName() . "</b>\n\n";
-            $message .= "Cтатус - <b>".$status."</b>\n";
-            $message .= "Всего наличных <b>".number_format($cash['all'], 0, '.', ' ')."</b>\n";
-            $message .= "Резерв <b>".number_format($cash['reserve'], 0, '.', ' ')."</b>\n";
-            $message .= "Свободно <b>".number_format($cash['free'], 0, '.', ' ')."</b>\n";
+            foreach ($cash as $cash_item){
+                $message .= "Всего <b>".StringHelper::formatSum($cash_item['all'])." ".$cash_item['currency_code']."</b>\n";
+                $message .= "Резерв <b>".StringHelper::formatSum($cash_item['reserve'])." ".$cash_item['currency_code']."</b>\n";
+                $message .= "Свободно <b>".StringHelper::formatSum($cash_item['free'])." ".$cash_item['currency_code']."</b>\n";
+                $message .= "--------------------------------\n";
+            }
             $message .= "==================================\n";
             $message .= "\n";
         }

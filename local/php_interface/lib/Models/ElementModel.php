@@ -1,6 +1,7 @@
 <?php
 
 namespace Models;
+use Bitrix\Main\UI\Uploader\Log;
 use CIBlock;
 use CIBlockElement;
 use CIBlockProperty;
@@ -16,7 +17,8 @@ abstract class ElementModel {
     private $id;
     private $name;
     private $filter = [];
-    private $select = ['ID', 'NAME', 'CODE', 'ACTIVE', 'CREATED_DATE', 'TIMESTAMP_X'];
+    private $arNavStartParams = [];
+    private $select = ['ID', 'IBLOCK_ID', 'NAME', 'CODE', 'ACTIVE', 'CREATED_DATE', 'TIMESTAMP_X'];
     private $update_fields = [];
     private static function includeIblockModule(){
         CModule::IncludeModule('iblock');
@@ -35,6 +37,18 @@ abstract class ElementModel {
     public function where($name, $value): ElementModel
     {
         $this->filter[$name] = $value;
+        return $this;
+    }
+
+    public function setLimit($value): ElementModel
+    {
+        $this->arNavStartParams['nPageSize'] = $value;
+        return $this;
+    }
+
+    public function setPage($value): ElementModel
+    {
+        $this->arNavStartParams['iNumPage'] = $value;
         return $this;
     }
 
@@ -61,7 +75,10 @@ abstract class ElementModel {
         foreach (self::props() as $prop => $data){
             $this->select[] = 'PROPERTY_'.$prop;
         }
-        $res = CIBlockElement::GetList(['ID'=>'DESC'], $this->filter, false, false, $this->select);
+        if(count($this->arNavStartParams)==0)
+            $this->arNavStartParams = null;
+
+        $res = CIBlockElement::GetList(['ID'=>'DESC'], $this->filter, false, $this->arNavStartParams, $this->select);
         $added = [];
         while ($item = $res->fetch()) {
             if(!in_array($item['ID'], $added)) {
@@ -76,7 +93,9 @@ abstract class ElementModel {
         foreach (self::props() as $prop => $data){
             $this->select[] = 'PROPERTY_'.$prop;
         }
-        $res = CIBlockElement::GetList(['ID'=>'DESC'], $this->filter, false, false, $this->select);
+        if(count($this->arNavStartParams)==0)
+            $this->arNavStartParams = null;
+        $res = CIBlockElement::GetList(['ID'=>'DESC'], $this->filter, false, $this->arNavStartParams, $this->select);
         $added = [];
         while ($item = $res->fetch()) {
             if(!in_array($item['ID'], $added)) {
@@ -109,19 +128,7 @@ abstract class ElementModel {
     }
 
     public function setField($string, $text, $timestamp = false){
-        /*$property = CIBlockProperty::GetList(Array("sort"=>"asc", "name"=>"asc"), Array("ACTIVE"=>"Y", "IBLOCK_ID"=>self::getIBlockId(), 'CODE' => $string))->Fetch();
-        if($property['MULTIPLE']=='Y'){
-            $res = CIBlockElement::GetProperty(self::getIBlockId(), $this->getId(), "sort", "asc", array("CODE" => $string));
-            $arr = [];
-            while ($f = $res->Fetch()) {
-                if($f['VALUE']!=$text)
-                    $arr[] = ['VALUE' => $f['VALUE'], 'DESCRIPTION' => ''];
-            }
-            $arr[] = ['VALUE' => $text, 'DESCRIPTION' => ''];
-            $text = $arr;
-        }*/
-
-        CIBlockElement::SetPropertyValuesEx($this->getField('ID'), false, array($string => $text));
+        CIBlockElement::SetPropertyValuesEx($this->getId(), false, array($string => $text));
         if($timestamp){
             $el = new CIBlockElement;
             $el->Update($this->getId(), ['NAME' => $this->getField('NAME')]);
@@ -131,7 +138,7 @@ abstract class ElementModel {
     public function find($id, $select=[]): ElementModel
     {
         if($select===[]) {
-            $select = ['ID', 'NAME', 'ACTIVE', 'CODE'];
+            $select = ['ID', 'NAME', 'ACTIVE', 'CODE', "CREATED_DATE"];
             foreach (self::props() as $prop => $data){
                 $select[] = 'PROPERTY_'.$prop;
             }
@@ -207,6 +214,14 @@ abstract class ElementModel {
     public function getName()
     {
         return $this->name;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getCode()
+    {
+        return $this->getField('CODE');
     }
 
 }

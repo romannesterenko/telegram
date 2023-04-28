@@ -23,9 +23,14 @@ class Markup
     {
         $applications = new Applications();
         $app = $applications->find($app_id);
-        if($app->isPayment()){
+        if ($app->isPayment()) {
             $response['message'] = "Новая заявка №".$app->getID().". Выдача\n";
-            $response['message'].= "Забрать сумму в размере ".number_format($app->getSum(), '0', '.', ' ')." в точке выдачи - ".$app->cash_room()->getName()."\n";
+            $response['message'].= "Забрать деньги в точке выдачи - ".$app->cash_room()->getName()."\n";
+            $response['message'].= "Адрес - ".$app->getAddress()."\n";
+            $response['message'].= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
+            $response['message'].= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
+            if($app->getField('RESP_COMENT'))
+                $response['message'].= "Комментарий ответственного - <b>".$app->getField('RESP_COMENT')."</b> \n";
             $response['buttons'] = json_encode([
                 'resize_keyboard' => true,
                 'inline_keyboard' => [
@@ -37,11 +42,13 @@ class Markup
                     ]
                 ]
             ]);
-            //LogHelper::write($response);
-        }else{
+        } else {
             $response['message'] = "Новая заявка №".$app->getID().". Забор\n";
-            $response['message'].= "Адрес - ".$app->cash_room()->getName()."\n";
-            $response['message'].= "Время - ".$app->getField('TIME')."\n";
+            $response['message'].= "Забрать деньги в ".$app->getTime()." в точке выдачи - ".$app->getAddress()."\n";
+            $response['message'].= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
+            $response['message'].= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
+            if($app->getField('RESP_COMENT'))
+                $response['message'].= "Комментарий ответственного - <b>".$app->getField('RESP_COMENT')."</b> \n";
             $response['buttons'] = json_encode([
                 'resize_keyboard' => true,
                 'inline_keyboard' => [

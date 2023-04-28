@@ -5,6 +5,7 @@ use Helpers\LogHelper;
 use Models\Applications;
 use Models\CashRoom;
 use Models\Crew;
+use Models\Currency;
 use Settings\Common;
 use \Processing\CashRoomEmployee\Markup as CREMarkup;
 
@@ -17,40 +18,60 @@ class Markup
         $markup = [];
         switch ((int)$app->getField('RESP_STEP')){
             case 0:
-                $markup = self::getRespGiveAfterMarkup($app_id);
+                if($app->isPayment()) {
+                    $markup = self::getRespGiveAfterMarkup($app_id);
+                } else {
+                    $markup = self::getRespAddSumMarkup('', $app_id);
+                }
                 break;
             case 1:
                 if($app->isPayment()){
                     if($app->hasBeforeApps()) {
-                        $markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
+                        $markup['message'] = "Заявка оформлена и ожидает выполнения других заявок";
+                        //$markup = self::getRespAddComentMarkup('', $app_id);
                     } else {
-                        $markup = self::getRespAddSumMarkup('', $app_id);
+                        if((int)$app->getField('SUM_ENTER_STEP')==0)
+                            $markup = self::getRespAddCurrencyMarkup('', $app_id);
+                        else
+                            $markup = self::getRespAddSumMarkup('', $app_id);
                     }
                 } else {
                     $markup = self::getRespAddTimeMarkup('');
                 }
                 break;
             case 2:
-                if($app->isPayment()) {
-                    if($app->hasBeforeApps()) {
-                        $markup = self::getRespAddAddressMarkup('', '', $app_id);
+                if ($app->isPayment()) {
+                    if ($app->hasBeforeApps()) {
+                        if((int)$app->getField('SUM_ENTER_STEP')==0)
+                            $markup = self::getRespAddCurrencyMarkup('', $app_id);
+                        else
+                            $markup = self::getRespAddSumMarkup('', $app_id);
                     } else {
-                        $markup = self::getRespCashRoomListMarkupInProcess($app->prepareAppDataMessage($app_id), $app_id);
+                        $text="";
+                        $cash_room_cash = $app->cash_room()->getCash();
+                        if($cash_room_cash['free']<$app->getSum()){
+                            $text="Свободная сумма в кассе меньше суммы в заявке\n\n";
+                        }
+                        $markup = self::getRespAddComentMarkup($text, $app_id);
                     }
-
-                }else{
-                    $markup = self::getRespAddAddressMarkup('', '', $app_id);
+                } else {
+                    $markup = self::getRespAddComentMarkup('', $app_id);
                 }
                 break;
             case 3:
-                if($app->isPayment()) {
+                if ($app->isPayment()) {
                     if($app->hasBeforeApps()) {
-                        $markup = self::getRespAddComentMarkup('', $app_id);
+                        $text="";
+                        $cash_room_cash = $app->cash_room()->getCash();
+                        if($cash_room_cash['free']<$app->getSum()){
+                            $text="Свободная сумма в кассе меньше суммы в заявке\n\n";
+                        }
+                        $markup = self::getRespAddComentMarkup($text, $app_id);
                     } else {
-                        $markup = self::getRespAddAddressMarkup('', '', $app_id);
+                        $markup = self::getRespAddComentMarkup('', $app_id);
+                        //$markup = self::getRespAddAddressMarkup('', '', $app_id);
                     }
-
-                }else{
+                } else {
                     $markup = self::getRespCrewListMarkup('', $app_id);
                 }
                 break;
@@ -59,7 +80,8 @@ class Markup
                     if($app->hasBeforeApps()) {
                         $markup = self::getRespCompleteAppMarkup('');
                     } else {
-                        $markup = self::getRespAddComentMarkup('', $app_id);
+                        $markup = self::getRespCompleteAppMarkup('');
+                        //$markup = self::getRespAddComentMarkup('', $app_id);
                     }
                 } else {
 
@@ -70,7 +92,7 @@ class Markup
                     if($app->hasBeforeApps()) {
                         $markup = self::getRespAddSumMarkup('', $app_id);
                     } else {
-                        $markup = self::getRespCompleteAppMarkup('');
+                        //$markup = self::getRespCompleteAppMarkup('');
                     }
 
                 } else {
@@ -119,9 +141,34 @@ class Markup
         if($app_id>0){
             $applications = new Applications();
             $app = $applications->find($app_id);
-            if($app->hasBeforeApps()){
-                $response['message'] = $error."Шаг №5. \nВведите <b>сумму сделки</b>";
+            if(!$app->isPayment())
+                $response['message'] = $error."Шаг №1. \nВведите <b>сумму сделки</b>";
+        }
+
+        return $response;
+    }
+    public static function getRespAddCurrencyMarkup($error='', $app_id=0): array
+    {
+        $response['message'] = $error."Шаг №2. \nВыберите <b>валюту сделки</b>";
+        if($app_id>0){
+            $applications = new Applications();
+            $app = $applications->find($app_id);
+            $list = $app->cash_room()->getCurrencies();
+            $inline_keys = [];
+            foreach ($list as $item) {
+                $currencies = new Currency();
+                $item = $currencies->find($item)->getArray();
+                $inline_keys[] = [
+                    [
+                        'text' => $item['NAME'],
+                        "callback_data" => 'SetCurrencyToApp_' . $app->getId()."_".$item['ID']
+                    ]
+                ];
             }
+            $response['buttons'] = json_encode([
+                'resize_keyboard' => true,
+                'inline_keyboard' => $inline_keys
+            ]);
         }
 
         return $response;
@@ -153,9 +200,9 @@ class Markup
     {
         $applications = new Applications();
         $app = $applications->find($app_id);
-        $step = $app->isPayment()?4:6;
-        if($step==4&&$app->hasBeforeApps())
-            $step = 5;
+        $step = $app->isPayment()?3:3;
+        if($app->hasBeforeApps())
+            $step = 3;
         $response['message'] = $text;
         $response['message'].= "Шаг №$step.\nВведите <b>Комментарий к заявке</b>  (Шаг можно пропустить)";
         $response['buttons'] = json_encode([
@@ -285,7 +332,7 @@ class Markup
                 $response['message'] .= "\n\nСписок уже привязанных заявок:";
                 foreach ($already_exists_list as $already_exists_app) {
                     $response['message'] .= "\n===================\n";
-                    $response['message'] .= "Заявка №" . $already_exists_app['ID'] . ". Сумма " . number_format($already_exists_app['PROPERTY_SUMM_VALUE'], 0, '', ' ') . ". Контрагент - " . $already_exists_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
+                    $response['message'] .= $already_exists_app['PROPERTY_AGENT_OFF_NAME_VALUE'].". №" . $already_exists_app['ID'];
                 }
             }
         }
@@ -309,7 +356,7 @@ class Markup
             foreach ($list as $app) {
                 $app_list[] = [
                     [
-                        'text' => "Заявка №".$app['ID'].". Сумма ".number_format($app['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контрагент - ".$app['PROPERTY_AGENT_OFF_NAME_VALUE'],
+                        'text' => $app['PROPERTY_AGENT_OFF_NAME_VALUE']. ". №".$app['ID'],
                         "callback_data" => "setAfterApp_".$id.'_'.$app['ID']
                     ]
                 ];
@@ -352,7 +399,7 @@ class Markup
             $response['message'].= "\n\nСписок уже привязанных заявок:";
             foreach ($already_exists_list as $already_exists_app){
                 $response['message'].="\n===================\n";
-                $response['message'].= "Заявка №".$already_exists_app['ID'].". Сумма ".number_format($already_exists_app['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контрагент - ".$already_exists_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
+                $response['message'].= $already_exists_app['PROPERTY_AGENT_OFF_NAME_VALUE']. ". №".$already_exists_app['ID'];
             }
         }
 
@@ -361,7 +408,7 @@ class Markup
             foreach ($list as $app) {
                 $app_list[] = [
                     [
-                        'text' => "Заявка №".$app['ID'].". Сумма ".number_format($app['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контрагент - ".$app['PROPERTY_AGENT_OFF_NAME_VALUE'],
+                        'text' => "Заявка №".$app['ID'].". Контрагент - ".$app['PROPERTY_AGENT_OFF_NAME_VALUE'],
                         "callback_data" => "setAfterApp_".$id.'_'.$app['ID']
                     ]
                 ];

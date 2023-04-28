@@ -2,6 +2,7 @@
 
 namespace Models;
 use Bitrix\Highloadblock\HighloadBlockTable as HLBT;
+use Helpers\LogHelper;
 
 abstract class HigloadElementModel {
     protected $HL_ID = null;
@@ -42,6 +43,7 @@ abstract class HigloadElementModel {
     public function where($name, $value): HigloadElementModel
     {
         $this->filter[$name] = $value;
+
         return $this;
     }
     public function filter($filter): HigloadElementModel

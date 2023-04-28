@@ -18,7 +18,7 @@ class Buttons
                 if((int)$array_data[1]>0){
                     $cash_room_days = new CashRoomDay();
                     $crd = $cash_room_days->find((int)$array_data[1]);
-                    $message = $crd->getName() . ". Запрос на открытие смены.\nСумма на начало дня - " . number_format($crd->getField('START_SUM'), 0, '', ' ');
+                    $message = $crd->getName() . ". Запрос на открытие смены.";
                     $response['buttons'] = json_encode([
                         'resize_keyboard' => true,
                         'inline_keyboard' => [
@@ -26,11 +26,7 @@ class Buttons
                                 [
                                     'text' => 'Одобрить',
                                     "callback_data" => "AllowOpenDayBySenior_" . $crd->getId()
-                                ],
-                                [
-                                    'text' => 'Отклонить',
-                                    "callback_data" => "DenyOpenDayBySenior_" . $crd->getId()
-                                ],
+                                ]
                             ]
                         ]
                     ]);
@@ -40,7 +36,7 @@ class Buttons
                 if((int)$array_data[1]>0){
                     $cash_room_days = new CashRoomDay();
                     $crd = $cash_room_days->find((int)$array_data[1]);
-                    $message = $crd->getName() . ". Запрос на закрытие смены.\nСумма на конец дня - " . number_format($crd->getField('END_SUM'), 0, '', ' ');
+                    $message = $crd->getName() . ". Запрос на закрытие смены.";
                     $response['buttons'] = json_encode([
                         'resize_keyboard' => true,
                         'inline_keyboard' => [
@@ -48,11 +44,7 @@ class Buttons
                                 [
                                     'text' => 'Одобрить',
                                     "callback_data" => "AllowCloseDayBySenior_" . $crd->getId()
-                                ],
-                                [
-                                    'text' => 'Отклонить',
-                                    "callback_data" => "DenyCloseDayBySenior_" . $crd->getId()
-                                ],
+                                ]
                             ]
                         ]
                     ]);
@@ -67,7 +59,7 @@ class Buttons
                         $message = "Действие недоступно";
                     } else {
                         $crd->setOpen();
-                        $cre_markup['message'] = "Открытие смены одобрено. Приятной работы";
+                        $cre_markup['message'] = $crd->getName().". Открытие смены одобрено. Приятной работы";
                         $cre_markup['buttons'] = json_encode([
                             'resize_keyboard' => true,
                             'keyboard' => [
@@ -84,8 +76,8 @@ class Buttons
                                 ]
                             ]
                         ]);
-                        Telegram::sendCommonMessageToCashRoom($crd->cash_room(), $cre_markup);
-                        $message = "Одобрено. Смена открыта";
+                        Telegram::sendCommonMessageToCashRoom($cre_markup);
+                        $message = $crd->getName().".Одобрено. Смена открыта";
                     }
                 }
                 break;
@@ -98,8 +90,8 @@ class Buttons
                         $message = "Действие недоступно";
                     } else {
                         $crd->setStatus(30);
-                        $cre_markup['message'] = "Открытие смены отклонено старшим.";
-                        Telegram::sendCommonMessageToCashRoom($crd->cash_room(), $cre_markup);
+                        $cre_markup['message'] = $crd->getName().". Открытие смены отклонено старшим.";
+                        Telegram::sendCommonMessageToCashRoom($cre_markup);
                         $message = "Отклонено";
                     }
                 }
@@ -109,9 +101,9 @@ class Buttons
                 if((int)$array_data[1]>0){
                     $cash_room_days = new CashRoomDay();
                     $crd = $cash_room_days->find((int)$array_data[1]);
-                    if($crd->isExistsWaitingForClose($crd->cash_room()->getId())){
+                    if($crd->getStatus()==33||$crd->getStatus()==37){
                         $crd->setClose();
-                        $cre_markup['message'] = "Закрытие смены одобрено";
+                        $cre_markup['message'] = $crd->getName().". Закрытие смены одобрено";
                         $cre_markup['buttons'] = json_encode([
                             'resize_keyboard' => true,
                             'keyboard' => [
@@ -122,7 +114,32 @@ class Buttons
                                 ]
                             ]
                         ]);
-                        Telegram::sendCommonMessageToCashRoom($crd->cash_room(), $cre_markup);
+                        Telegram::sendCommonMessageToCashRoom($cre_markup);
+                        $message = "Одобрено";
+                    } else {
+                        $message = "Рабочий день уже закрыт";
+                    }
+                }
+                break;
+
+            case 'CloseDayBySenior':
+                if((int)$array_data[1]>0){
+                    $cash_room_days = new CashRoomDay();
+                    $crd = $cash_room_days->find((int)$array_data[1]);
+                    if($crd->getStatus()==33||$crd->getStatus()==37){
+                        $crd->setClose();
+                        $cre_markup['message'] = $crd->getName().". Закрытие смены одобрено.";
+                        $cre_markup['buttons'] = json_encode([
+                            'resize_keyboard' => true,
+                            'keyboard' => [
+                                [
+                                    [
+                                        'text' => Common::getButtonText('cre_start_new_work_day'),
+                                    ],
+                                ]
+                            ]
+                        ]);
+                        Telegram::sendCommonMessageToCashRoom($cre_markup);
                         $message = "Одобрено";
                     } else {
                         $message = "Рабочий день уже закрыт";
@@ -154,7 +171,7 @@ class Buttons
                                 ]
                             ]
                         ]);
-                        Telegram::sendCommonMessageToCashRoom($crd->cash_room(), $cre_markup);
+                        Telegram::sendCommonMessageToCashRoom($cre_markup);
                     }
                 }
                 break;

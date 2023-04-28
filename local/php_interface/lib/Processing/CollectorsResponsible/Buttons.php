@@ -1,6 +1,8 @@
 <?php
 namespace Processing\CollectorsResponsible;
 use Api\Telegram;
+use Exception;
+use Helpers\LogHelper;
 use Models\Applications;
 use Models\Order;
 use Processing\CollectorsResponsible\Markup as RespMarkup;
@@ -26,6 +28,7 @@ class Buttons
                 ]
             ]
         ]);
+
         switch ($array_data[0]){
             case 'setToRefinement':
                 if((int)$array_data[1]>0){
@@ -94,14 +97,44 @@ class Buttons
                         $markup['message'] = Common::getWrongAppActionText();
                     } else {
                         if($app->isPayment()) {
-                            $app->setField('RESP_STEP', 4);
+                            $app->setStatus(25);
+                            $app->setField('RESP_STEP', 7);
+                            $markup['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем подтверждения экипажем.";
+                            $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), $app->crew()->getId(), 'new_app');
+                            Telegram::sendMessageToCollector($app->crew()->getId(), $collector_markup);
                         }else{
-                            $app->setStatus(43);
-                            $app->setField('RESP_STEP', 5);
-                            $markup['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем установки кассы ответственным за учет.";
+                            $app->setStatus(25);
+                            $app->setField('RESP_STEP', 4);
+                            $markup['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем подтверждения экипажем.";
+                            $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), $app->crew()->getId(), 'new_app');
+                            Telegram::sendMessageToCollector($app->crew()->getId(), $collector_markup);
+
+                            $manager_text = "По заявке №".$app->getId()." планируемое время забора от контрагента ".$app->getField('AGENT_OFF_NAME')." - ".$app->getTime();
+                            Telegram::sendCommonMessageToManager($manager_text);
+                            Telegram::sendMessageToResp($manager_text);
+
+                            $contact_message = "По заявке №".$app->getId()." планируемое время забора  - ".$app->getTime().". Планируемое место забора - ".$app->getAddress();
+                            try {
+                                \Api\Sender::send($app, $contact_message);
+                            }catch (Exception $exception){
+
+                            }
+                            $markup['buttons'] = json_encode([
+                                'resize_keyboard' => true,
+                                'keyboard' => [
+                                    [
+                                        [
+                                            'text' => "Заявки в работу"
+                                        ],
+                                        [
+                                            'text' => Common::getButtonText('resp_apps_list_new')
+                                        ]
+                                    ]
+                                ]
+                            ]);
                         }
-                        $cash_resp_markup = RespMarkup::getNeedSetCashRoomByAppMarkup($app->getId());
-                        Telegram::sendMessageToCashResp($cash_resp_markup);
+                        /*$cash_resp_markup = RespMarkup::getNeedSetCashRoomByAppMarkup($app->getId());
+                        Telegram::sendMessageToCashResp($cash_resp_markup);*/
                     }
 
                     $message = $markup['message'];
@@ -142,7 +175,11 @@ class Buttons
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1])->get();
                     if($app->isInRefinement()) {
-                        $app->setField('RESP_STEP', 0);
+                        if($app->isPayment()&&$app->getField('RESP_STEP')==2){
+                            $app->setField('RESP_STEP', 3);
+                        } else {
+                            $app->setField('RESP_STEP', 0);
+                        }
                         $app->setField('STATUS', 15);
                         $markup = RespMarkup::getMarkupByResp((int)$array_data[1]);
                     } else {
@@ -201,30 +238,38 @@ class Buttons
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1])->get();
                     if( $app->isPayment() ) {
-                        if($app->getStatus()!=25&&$app->getStatus()!=45){
+                        if($app->getStatus()!=15&&$app->getStatus()!=45){
                             $markup['message'] = Common::getWrongAppActionText();
                         } else {
-                            $markup['message'] = "Экипаж назначен.\nЗаявка №".$app->getId()." оформлена";
+                            $app->setField('CREW', (int)$array_data[2]);
+                            $app->setField('RESP_STEP', 6);
+                            $markup = RespMarkup::getMarkupByResp((int)$array_data[1]);
+                            /*$markup['message'] = "Экипаж назначен.\nЗаявка №".$app->getId()." оформлена";
                             $app->setField('CREW', (int)$array_data[2]);
                             $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), (int)$array_data[2], 'new_app');
                             Telegram::sendMessageToCollector((int)$array_data[2], $collector_markup);
                             $app->setField('STATUS', 25, true);
                             $order = new Order();
-                            $order->createFromApp($app);
+                            $order->createFromApp($app);*/
                         }
 
                     } else {
-                        if($app->getStatus()!=25&&$app->getStatus()!=15){
+                        if($app->getStatus()!=15&&$app->getStatus()!=45){
                             $markup['message'] = Common::getWrongAppActionText();
                         } else {
                             if($app->getStatus()==15) {
+                                //$markup['message'] = "Экипаж назначен.\nЗаявка №".$app->getId()." оформлена";
                                 $app->setField('CREW', (int)$array_data[2]);
-                                $app->setField('RESP_STEP', 4);
+                                $app->setField('RESP_STEP', 3);
+
                                 $markup = RespMarkup::getMarkupByResp((int)$array_data[1]);
+                                //$app->setField('STATUS', 25, true);
+                                //$order = new Order();
+                                //$order->createFromApp($app);
                             }else{
                                 $app->setField('CREW', (int)$array_data[2]);
                                 $markup['message'] = 'Экипаж изменен';
-                                $app->setCompleteFromResp();
+                                //$app->setCompleteFromResp();
                             }
                         }
                     }

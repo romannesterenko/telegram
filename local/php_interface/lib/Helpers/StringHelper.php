@@ -30,4 +30,9 @@ class StringHelper
         }
         return $template;
     }
+
+    public static function formatSum($sum)
+    {
+        return number_format($sum, 0, '', ' ');
+    }
 }

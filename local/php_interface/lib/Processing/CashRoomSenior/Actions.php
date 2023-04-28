@@ -45,14 +45,14 @@ class Actions
                         foreach ($cash_room_day_list as $item) {
                             $inline_keyboard[] = [
                                 [
-                                    "text" => $item['NAME']." Сумма - ".number_format($item['PROPERTY_START_SUM_VALUE'], 0, '', ' '),
+                                    "text" => $item['NAME'],
                                     "callback_data" => "showApproveDay_" . $item['ID']
                                 ]
                             ];
                         }
                         $keyboard = array("inline_keyboard" => $inline_keyboard);
                         $buttons = json_encode($keyboard);
-                    }else{
+                    } else {
                         $message = "Запросов на открытие смены на сегодня нет";
                     }
                     break;
@@ -65,7 +65,7 @@ class Actions
                         foreach ($cash_room_day_list as $item) {
                             $inline_keyboard[] = [
                                 [
-                                    "text" => $item['NAME']." Сумма - ".number_format($item['PROPERTY_END_SUM_VALUE'], 0, '', ' '),
+                                    "text" => $item['NAME'],
                                     "callback_data" => "showApproveCloseDay_" . $item['ID']
                                 ]
                             ];

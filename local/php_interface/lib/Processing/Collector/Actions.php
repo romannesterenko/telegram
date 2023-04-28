@@ -1,10 +1,12 @@
 <?php
 namespace Processing\Collector;
+use Api\Sender;
 use Api\Telegram;
 use Helpers\ArrayHelper;
 use Helpers\LogHelper;
 use Models\Applications;
 use Models\ElementModel;
+use Models\Order;
 use Processing\Responsible\Buttons as RespButtons;
 use Processing\CashRoomEmployee\Buttons as CREButtons;
 use Processing\Collector\Buttons as CollectorButtons;
@@ -15,58 +17,39 @@ class Actions
 {
     public static function process(\Models\Staff $employee, $data, $is_callback): array
     {
-        $buttons = json_encode([
-            'resize_keyboard' => true,
-            'keyboard' => [
-                [
-                    [
-                        'text' => 'Новые заявки'
-                    ],
-                    [
-                        'text' => 'Заявки в доставке'
-                    ],
-                    [
-                        'text' => 'Заявки на забор'
-                    ]
-                ]
-            ]
-        ]);
         if($is_callback){
             $data['chat']['id'] = $data['message']['chat']['id'];
             if(!empty($data['data'])){
+                $buttons = Buttons::getCommonButtons($employee->crew()->getId());
                 $response = CollectorButtons::process($data['data']);
                 $message = $response['message'];
                 if ($response['buttons'])
                     $buttons = $response['buttons'];
             }
         } else {
-            $buttons = json_encode([
-                'resize_keyboard' => true,
-                'keyboard' => [
-                    [
-                        [
-                            'text' => 'Выдача'
-                        ],
-                        [
-                            'text' => 'Забор'
-                        ],
-                        [
-                            'text' => 'Заявки в доставке'
-                        ]
-                    ]
-                ]
-            ]);
+            $buttons = Buttons::getCommonButtons($employee->crew()->getId());
+            if(str_contains($data['text'], "Выдача (")){
+                $arr = explode(" (", $data['text']);
+                $data['text'] = $arr[0];
+            }
+            if(str_contains($data['text'], "Забор (")){
+                $arr = explode(" (", $data['text']);
+                $data['text'] = $arr[0];
+            }
+            if(str_contains($data['text'], "В доставке (")){
+                $arr = explode(" (", $data['text']);
+                $data['text'] = $arr[0];
+            }
             switch ($data['text']) {
                 case 'Выдача':
                     $applications = new Applications();
-                    //$list = $applications->getNewAppsByCrew($employee->crew()->getId());
                     $list = $applications->getPaymentsAppsByCrew($employee->crew()->getId());
                     if (ArrayHelper::checkFullArray($list)) {
                         $inline_keyboard = [];
                         foreach ($list as $application) {
                             $inline_keyboard[] = [
                                 [
-                                    "text" => '№'.$application['ID'].'. Сумма ' . $application['PROPERTY_SUM_VALUE'],
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                                     "callback_data" => "showApplicationForCollector_" . $application['ID']
                                 ]
                             ];
@@ -78,7 +61,7 @@ class Actions
                         $message = 'Действующих заявок на выдачу пока нет';
                     }
                     break;
-                case 'Заявки в доставке':
+                case 'В доставке':
                     $applications = new Applications();
                     $list = $applications->getAppsInDeliveryByCrew($employee->crew()->getId());
                     if (ArrayHelper::checkFullArray($list)) {
@@ -86,7 +69,7 @@ class Actions
                         foreach ($list as $application) {
                             $inline_keyboard[] = [
                                 [
-                                    "text" => '№'.$application['ID'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].'. Сумма ' . number_format($application['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контактное лицо - ".$application['PROPERTY_AGENT_NAME_VALUE'],
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                                     "callback_data" => "showApplicationForCollector_" . $application['ID']
                                 ]
                             ];
@@ -106,7 +89,7 @@ class Actions
                         foreach ($list as $application) {
                             $inline_keyboard[] = [
                                 [
-                                    "text" => '№'.$application['ID'].'. Сумма ' . number_format($application['PROPERTY_SUMM_VALUE'], 0, '', ' ').". Контактное лицо - ".$application['PROPERTY_AGENT_NAME_VALUE'],
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                                     "callback_data" => "showApplicationForCollector_" . $application['ID']
                                 ]
                             ];
@@ -132,7 +115,13 @@ class Actions
                     if($not_recieve_application->getId()>0){
                         $not_recieve_application->setField('WHY_NOT_RECIEVE', $data['text']);
                         $not_recieve_application->setProblemStatus();
-                        $not_recieve_application->order()->setStatus(57);
+                        $orders = $not_recieve_application->order();
+                        if(ArrayHelper::checkFullArray($orders)){
+                            foreach ($orders as $order){
+                                $ord_obj = new Order();
+                                $ord_obj->find($order['ID'])->setStatus(57);
+                            }
+                        }
                         $message = "Деньги не получены. Заявка помечена как проблемная.";
                         //сообщения менеджеру и ответственному об изменении статуса
                         $markup['message'] = "Информация по заявке №" . $not_recieve_application->getId() . "\n";
@@ -143,16 +132,23 @@ class Actions
                         else
                             Telegram::sendMessageToCollResp($markup['message']);
                     //Деньги не переданы, ввод коментария
-                    } elseif ($not_gave_application->getId()>0){
+                    } elseif ( $not_gave_application->getId()>0 ) {
                         $not_gave_application->setField('WHY_NOT_GIVE', $data['text']);
                         $not_gave_application->setFailed();
-                        $markup['message'] = "Заявка №" . $not_gave_application->getID() . " не выполнена. Экипаж <b>".$not_gave_application->crew()->getName()."</b> не передал сумму контрагенту <b>".$not_gave_application->getField('AGENT_NAME')."</b>. \nПричина - <b>" . $data['text'] . "</b>. \nДеньги направляются обратно в кассу <b>".$not_gave_application->cash_room()->getName()."</b>";
-                        $message = "Заявка №" . $not_gave_application->getId() . " не была выполнена. Отвезите средства в кассу <b>".$not_gave_application->cash_room()->getName()."</b>";
+                        $message = "Отвезите деньги обратно в кассу ".$not_gave_application->cash_room()->getName();
+                        $markup["message"] = "Возврат из доставки заявки №".$not_gave_application->getId();
                         Telegram::sendMessageToManager($markup, $not_gave_application->getId());
-                        if($not_gave_application->isPayment())
-                            Telegram::sendMessageToResp($markup['message']);
-                        else
-                            Telegram::sendMessageToCollResp($markup['message']);
+                        $cash = $not_gave_application->getCash();
+                        $message_to_cash_room['message'] = "Принять приход (возврат доставки). Контрагент - ".$not_gave_application->getField('AGENT_OFF_NAME').". ".implode(', ', $cash);
+                        $message_to_cash_room['buttons'] = \Processing\CashRoomEmployee\Buttons::getCommonButtons();
+                        Telegram::sendCommonMessageToCashRoom($message_to_cash_room);
+
+                        $client_message = "Отмена доставки заявки №".$not_gave_application->getId();
+                        try {
+                            Sender::send($not_gave_application, $client_message);
+                        } catch(\Exception $e) {
+                            LogHelper::write($e->getMessage());
+                        }
                     } else {
                         $message = 'К сожалению, вы ввели неизвестную мне команду :/';
                     }

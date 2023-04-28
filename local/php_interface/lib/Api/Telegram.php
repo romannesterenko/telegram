@@ -1,5 +1,6 @@
 <?php
 namespace Api;
+use CURLFile;
 use \Helpers\ArrayHelper;
 use Bitrix\Main\Web\HttpClient;
 use Helpers\LogHelper;
@@ -25,7 +26,7 @@ class Telegram
     public static function sendMessageToSenior($markup)
     {
         $staff = new Staff();
-        $chat_id = $staff->getSenior()->getField('TG_CHAT_ID');
+        $chat_id = $staff->getSenior()->getChatId();
         if(!empty($chat_id)){
             $params = ["chat_id" => $chat_id, "text" => $markup['message'], 'parse_mode' => 'HTML', 'reply_markup' => $markup['buttons']];
             self::sendMessage($params);
@@ -42,6 +43,15 @@ class Telegram
         }
     }
 
+    public static function sendMessageToCashRoomSenior($message)
+    {
+        $staff = new Staff();
+        $chat_id = $staff->getSenior()->getField('TG_CHAT_ID');
+        if(!empty($chat_id)){
+            $params = ["chat_id" => $chat_id, "text" => $message, 'parse_mode' => 'HTML'];
+            self::sendMessage($params);
+        }
+    }
 
 
     private static function getToken()
@@ -51,7 +61,6 @@ class Telegram
 
     public static function startProcess($data)
     {
-
         $is_callback = false;
         if(ArrayHelper::checkFullArray($data['callback_query'])) {
             $data = $data['callback_query'];
@@ -97,14 +106,58 @@ class Telegram
                 $params = ["chat_id" => $data['chat']['id'], "text" => $message];
             }
         }
-        self::sendMessage($params);
+        if(ArrayHelper::checkFullArray($params['photo'])) {
+            self::sendMedia($params);
+        }else
+            self::sendMessage($params);
     }
 
     /*отправка сообщений*/
     public static function sendMessage($params)
     {
+        $url = "https://api.telegram.org/bot". Common::getTGToken()."/sendMessage?" . http_build_query($params);
+
         $httpClient = new HttpClient();
-        $httpClient->get("https://api.telegram.org/bot". Common::getTGToken()."/sendMessage?" . http_build_query($params));
+        $httpClient->get($url);
+    }
+
+    /*отправка сообщений с вложениями фото*/
+    public static function sendPhoto($params)
+    {
+        $arrayQuery = array(
+            'chat_id' => $params['chat_id'],
+            'caption' => $params['caption'],
+            'photo' => "http://ci01.amg.pw".\CFile::GetPath($params['photo'][0]['ID']),
+        );
+        $url = "https://api.telegram.org/bot". Common::getTGToken()."/sendPhoto?" . http_build_query($arrayQuery);
+        $httpClient = new HttpClient();
+        $httpClient->get($url);
+    }
+
+    /*отправка сообщений с вложениями фото*/
+    public static function sendMedia($params)
+    {
+        $url = "https://api.telegram.org/bot". Common::getTGToken() ."/sendMediaGroup";
+        $photos = [];
+        $types = [
+            'image/jpeg' => 'photo',
+            'image/png' => 'photo',
+        ];
+        foreach ($params['photo'] as $key => $photo){
+            $type = $types[$photo['CONTENT_TYPE']]??'document';
+            if($key==0)
+                $photos[] = ['type'=>$type, 'caption' => $params['caption'], 'media' => "http://ci01.amg.pw".\CFile::GetPath($photo['ID'])];
+            else
+                $photos[] = ['type'=>$type, 'media' => "http://ci01.amg.pw".\CFile::GetPath($photo['ID'])];
+        }
+        $postContent = [
+            'chat_id' => $params['chat_id'],
+            'caption' => $params['caption'],
+            'media' => json_encode($photos)
+        ];
+        $httpClient = new HttpClient();
+        $httpClient->post($url, $postContent);
+
     }
     public static function sendMessageToResp($text, $app_id=0, $buttons = '')
     {
@@ -149,9 +202,10 @@ class Telegram
             self::sendMessage($params);
         }
     }
-    public static function sendCommonMessageToCashRoom(CashRoom $cash_room, $markup)
+    public static function sendCommonMessageToCashRoom($markup)
     {
-        $chat_id = $cash_room->employee()->getChatId();
+        $staff = new Staff();
+        $chat_id = $staff->getCashRoomEmployee()->getChatId();
         if(!empty($chat_id)){
             $params = ["chat_id" => $chat_id, "text" => $markup['message'], 'parse_mode' => 'HTML', 'reply_markup' => $markup['buttons']];
             self::sendMessage($params);
@@ -172,6 +226,15 @@ class Telegram
         $chat_id = $applications->find($app_id)->manager()->getField('TG_CHAT_ID');
         if(!empty($chat_id)){
             $params = ["chat_id" => $chat_id, "text" => $data['message'], 'parse_mode' => 'HTML', 'reply_markup' => $data['buttons']];
+            self::sendMessage($params);
+        }
+    }
+    public static function sendCommonMessageToManager($message)
+    {
+        $staff = new Staff();
+        $chat_id = $staff->getManager()->getField('TG_CHAT_ID');
+        if(!empty($chat_id)){
+            $params = ["chat_id" => $chat_id, "text" => $message, 'parse_mode' => 'HTML'];
             self::sendMessage($params);
         }
     }

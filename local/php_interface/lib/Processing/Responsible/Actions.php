@@ -12,23 +12,7 @@ class Actions
     public static function process(\Models\Staff $employee, $data, $is_callback): array
     {
         $message = 'К сожалению, вы ввели неизвестную мне команду :/';
-
-        $buttons = json_encode([
-            'resize_keyboard' => true,
-            'keyboard' => [
-                [
-                    [
-                        'text' => Common::getButtonText('resp_apps_list_to_work')
-                    ],
-                    [
-                        'text' => Common::getButtonText('resp_apps_list_new')
-                    ],
-                    [
-                        'text' => Common::getButtonText('resp_cash_room_list')
-                    ]
-                ]
-            ]
-        ]);
+        $buttons = Buttons::getMenuButtons();
 
         if($is_callback){
             $data['chat']['id'] = $data['message']['chat']['id'];

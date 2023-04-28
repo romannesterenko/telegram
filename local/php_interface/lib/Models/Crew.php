@@ -9,9 +9,4 @@ class Crew extends Model {
         $staff = new Staff();
         return $staff->find($this->getField('EMPLOYEE'));
     }
-
-    public function getFreeCrew()
-    {
-        return 208;
-    }
 }

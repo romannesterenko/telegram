@@ -63,8 +63,8 @@ $aTabs = array(
     ),
     array(
         "DIV" => "integration",
-        "TAB" => Loc::getMessage('TELEGRAM_INTEGRATION_TITLE'),
-        "TITLE" => Loc::getMessage('TELEGRAM_INTEGRATION_TEXT'),
+        "TAB" => "Интеграция",
+        "TITLE" => "Настройки интеграции с внешними сервисами",
         "OPTIONS" => array(
             'Подключение Telegram',
             array(
@@ -75,11 +75,24 @@ $aTabs = array(
             ),
             'Подключение Mattermost',
             array(
+                "mattermost_is_testing_mode",
+                'Тестовый режим Mattermost',
+                "",
+                array("checkbox")
+            ),
+            array(
                 "mattermost_webhook_token",
-                'Токен вебхука Mattermost',
+                'Токен вебхука Mattermost канал Касса',
+                "",
+                array("text", 60)
+            ),
+            array(
+                "mattermost_webhook_operation_token",
+                'Токен вебхука Mattermost канал Операция',
                 "",
                 array("text", 60)
             )
+
         )
     ),
     array(
