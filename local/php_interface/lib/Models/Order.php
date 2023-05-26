@@ -1,6 +1,7 @@
 <?php
 namespace Models;
 use Api\Mattermost;
+use Api\Telegram;
 use Helpers\ArrayHelper;
 use Helpers\LogHelper;
 use Models\ElementModel as Model;
@@ -54,8 +55,7 @@ class Order extends Model {
         $fields = [];
         $properties['CASH_ROOM'] = $app->cash_room()->getId();
         $properties['APP'] = $app->getId();
-
-        $properties['WORK_DAY'] = $app->cash_room()->getNearestWorkDay()->getId();
+        $properties['WORK_DAY'] = (new CashRoomDay())->getExistsOpenToday($app->cash_room()->getId())->getId()??false;
         $values = $app->getField('SUMM');
         $currencies = $app->getField('CURRENCY');
         if (ArrayHelper::checkFullArray($values)&&ArrayHelper::checkFullArray($currencies)){
@@ -79,6 +79,15 @@ class Order extends Model {
             }
         }
     }
+    public function cancelByAppID($app_id)
+    {
+        $applications = new Applications();
+        $app = $applications->find($app_id);
+        foreach ($app->order() as $order){
+            (new Order)->find($order['ID'])->setStatus(57);
+        }
+
+    }
 
     public function setComplete()
     {
@@ -95,11 +104,13 @@ class Order extends Model {
                     $message.="\n".$currency->getName()." - ".number_format($sum, 0, '', ' ')." ".$currency->getField("CODE");
                 }
             }
-        }else{
+        } else {
             $cash = $app->getCash();
-            $message = "Приход ".$app->getField('AGENT_OFF_NAME').". ".implode(", ", $cash)."\n";
+            $message = "Приход ".$app->getField('AGENT_OFF_NAME')." ".implode(", ", $cash)."\n";
+
+            Mattermost::send($message, $app->cash_room()->getMatterMostChannel());
         }
-        Mattermost::send($message);
+
     }
 
     public function setStatus($status_id)
@@ -113,7 +124,7 @@ class Order extends Model {
         $app = $this->app();
         $cash = $app->getCash();
         $message = "Приход (Возврат заявки) ".$app->getField('AGENT_OFF_NAME').". ".implode(", ", $cash)."\n";
-        Mattermost::send($message);
+        Mattermost::send($message, $app->cash_room()->getMatterMostChannel());
     }
 
     public function setRealSum($real_sum)
@@ -135,5 +146,11 @@ class Order extends Model {
     {
         $applications = new Applications();
         return $applications->find($this->getField('APP'));
+    }
+
+    public function reset()
+    {
+        $this->setField('STATUS', 38);
+        $this->setField('SUM_FACT', false);
     }
 }

@@ -8,6 +8,7 @@ class StringHelper
 {
     public static function checkPhone($_val)
     {
+        $_val = str_replace([' ', '(', ')', '-'], '', $_val);
         if (empty($_val)) {
             return false;
         }

@@ -17,6 +17,7 @@ class Actions
 {
     public static function process(\Models\Staff $employee, $data, $is_callback): array
     {
+        $buttons = Buttons::getCommonButtons($employee->crew()->getId());
         if($is_callback){
             $data['chat']['id'] = $data['message']['chat']['id'];
             if(!empty($data['data'])){
@@ -27,7 +28,6 @@ class Actions
                     $buttons = $response['buttons'];
             }
         } else {
-            $buttons = Buttons::getCommonButtons($employee->crew()->getId());
             if(str_contains($data['text'], "Выдача (")){
                 $arr = explode(" (", $data['text']);
                 $data['text'] = $arr[0];
@@ -54,7 +54,7 @@ class Actions
                                 ]
                             ];
                         }
-                        $message = 'Список новых заявок';
+                        $message = 'Список заявок на выдачу';
                         $keyboard = array("inline_keyboard" => $inline_keyboard);
                         $buttons = json_encode($keyboard);
                     } else {
@@ -94,7 +94,7 @@ class Actions
                                 ]
                             ];
                         }
-                        $message = 'Список назначеных заявок';
+                        $message = 'Список заявок на забор';
                         $keyboard = array("inline_keyboard" => $inline_keyboard);
                         $buttons = json_encode($keyboard);
                     } else {
@@ -107,12 +107,9 @@ class Actions
                     break;
                 //другие текстовые данные
                 default:
-                    $nr_applications = new Applications();
-                    $g_applications = new Applications();
-                    $not_recieve_application = $nr_applications->getNeedCommentToReceive($employee->crew());
-                    $not_gave_application = $g_applications->getNeedCommentToGive($employee->crew());
                     //Деньги не получены, ввод коментария
-                    if($not_recieve_application->getId()>0){
+                    if($employee->getNotReceiveMoneySession() > 0 ){
+                        $not_recieve_application = (new Applications())->find($employee->getNotReceiveMoneySession());
                         $not_recieve_application->setField('WHY_NOT_RECIEVE', $data['text']);
                         $not_recieve_application->setProblemStatus();
                         $orders = $not_recieve_application->order();
@@ -122,6 +119,7 @@ class Actions
                                 $ord_obj->find($order['ID'])->setStatus(57);
                             }
                         }
+                        $employee->resetNotReceiveMoneySession();
                         $message = "Деньги не получены. Заявка помечена как проблемная.";
                         //сообщения менеджеру и ответственному об изменении статуса
                         $markup['message'] = "Информация по заявке №" . $not_recieve_application->getId() . "\n";
@@ -132,17 +130,18 @@ class Actions
                         else
                             Telegram::sendMessageToCollResp($markup['message']);
                     //Деньги не переданы, ввод коментария
-                    } elseif ( $not_gave_application->getId()>0 ) {
+                    } elseif ( $employee->getNotGaveMoneySession() > 0 ) {
+                        $not_gave_application = (new Applications())->find($employee->getNotGaveMoneySession());
                         $not_gave_application->setField('WHY_NOT_GIVE', $data['text']);
                         $not_gave_application->setFailed();
+                        $employee->resetNotGaveMoneySession();
                         $message = "Отвезите деньги обратно в кассу ".$not_gave_application->cash_room()->getName();
-                        $markup["message"] = "Возврат из доставки заявки №".$not_gave_application->getId();
+                        $markup["message"] = "Возврат из доставки заявки №".$not_gave_application->getId()."\nПричина возврата - ".$data['text'];
                         Telegram::sendMessageToManager($markup, $not_gave_application->getId());
                         $cash = $not_gave_application->getCash();
                         $message_to_cash_room['message'] = "Принять приход (возврат доставки). Контрагент - ".$not_gave_application->getField('AGENT_OFF_NAME').". ".implode(', ', $cash);
                         $message_to_cash_room['buttons'] = \Processing\CashRoomEmployee\Buttons::getCommonButtons();
                         Telegram::sendCommonMessageToCashRoom($message_to_cash_room);
-
                         $client_message = "Отмена доставки заявки №".$not_gave_application->getId();
                         try {
                             Sender::send($not_gave_application, $client_message);

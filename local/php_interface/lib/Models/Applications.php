@@ -2,6 +2,7 @@
 namespace Models;
 use Api\Sender;
 use Api\Telegram;
+use Bitrix\Main\UI\Uploader\Log;
 use danog\MadelineProto\Exception;
 use Helpers\ArrayHelper;
 use Helpers\LogHelper;
@@ -20,6 +21,11 @@ class Applications extends Model {
     public function getDrartedByManager($manager_id)
     {
         return (int)$this->where('PROPERTY_CREATED_MANAGER', $manager_id)->where('PROPERTY_STATUS', 3)->first()->getField('ID');
+    }
+
+    public function getDrartedById($app_id)
+    {
+        return (int)$this->where('ID', $app_id)->where('PROPERTY_STATUS', 3)->first()->getField('ID');
     }
 
     public function getByManager($manager_id){
@@ -56,7 +62,7 @@ class Applications extends Model {
         $properties['MESSENGER'] = 9;
         $properties['DRAFT_STEP'] = 0;
         $fields['PROPERTY_VALUES'] = $properties;
-        self::create($fields);
+        return self::create($fields);
     }
 
     public function removeDrafted($manager_id)
@@ -65,10 +71,10 @@ class Applications extends Model {
         self::delete($id);
     }
 
-    public function setFieldToDraft($manager_id, $text)
+    public function setFieldToDraft($app_id, $text)
     {
         $return_array = [];
-        $draft = $this->getDrarted($manager_id);
+        $draft = $this->find($app_id);
         switch ($draft->getField('DRAFT_STEP')){
             case 0:
                 $draft->setField('AGENT_OFF_NAME', $text);
@@ -84,18 +90,25 @@ class Applications extends Model {
             case 2:
                 $draft->setField('AGENT_NAME', $text);
                 $draft->setField('DRAFT_STEP', 3);
-                $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')));
+                $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')), '', $draft->getField('ID'));
                 break;
             case 3:
                 if(!\Helpers\StringHelper::checkPhone($text)){
-                    $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')), "Некорректно введен номер телефона, проверьте вводимые Вами данные!\n");
-                }else {
+                    $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')), "Некорректно введен номер телефона, проверьте вводимые Вами данные!\n", $draft->getField('ID'));
+                } else {
                     $draft->setField('CONTACT_PHONE', $text);
                     $draft->setField('DRAFT_STEP', 4);
-                    if($draft->isPayment()){
-                        $return_array = ManagerMarkup::getRespCashRoomListMarkupInProcess($draft->getField('ID'));
+                    $list_cash_rooms = $draft->manager()->getManagerCashRooms();
+                    if(count($list_cash_rooms)==1){
+                        $draft->setField('CASH_ROOM', (int)current($list_cash_rooms));
+                        $draft->setField('DRAFT_STEP', 5);
+                        $return_array = ManagerMarkup::getComentMarkup('', $draft->getField('ID'));
                     } else {
-                        $return_array = \Processing\Manager\Markup::getRespCashRoomListMarkupInProcess($draft->getField('ID'));
+                        if ($draft->isPayment()) {
+                            $return_array = ManagerMarkup::getRespCashRoomListMarkupInProcess($draft->getField('ID'));
+                        } else {
+                            $return_array = \Processing\Manager\Markup::getRespCashRoomListMarkupInProcess($draft->getField('ID'));
+                        }
                     }
                 }
                 break;
@@ -107,24 +120,38 @@ class Applications extends Model {
                 }
                 break;
             case 5:
-                    $draft->setField('MANAGER_COMENT', $text);
-                    $draft->setField('DRAFT_STEP', 6);
-                    $draft->setReadyToWorkStatus();
-                    $return_array['message'] = "Заявка №".$draft->getId()." создана";
-                    //Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID'), true), $draft->getField('ID'));
-                    $return_array['buttons'] = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
+                $draft->setField('MANAGER_COMENT', $text);
+                $draft->setField('DRAFT_STEP', 6);
+                $draft->setReadyToWorkStatus();
+                $return_array['message'] = "Заявка №".$draft->getId()." создана";
+                //Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID'), true), $draft->getField('ID'));
+                $app_id = $draft->getId();
+                $buttons_array = [];
+                if($app_id>0){
+                    if((new Applications())->find($app_id)->manager()->getField('TG_LOGIN')==Common::GetAllowCashRoomEmployee()){
+                        $buttons_array[] = [
+                            'text' => "Инфо по кассам"
+                        ];
+                    }
+                }
+                $buttons_array[] = [
+                    'text' => "Операции"
+                ];
+                $buttons_array[] = [
+                    'text' => \Settings\Common::getButtonText('manager_app_list')
+                ];
+                $buttons_array[] = [
+                    'text' => \Settings\Common::getButtonText('manager_cancel_new_app'),
+                ];
+
+                $return_array['buttons'] = json_encode([
+                    'resize_keyboard' => true,
+                    'keyboard' => [
+
+                        $buttons_array
+
+                    ]
+                ]);
                 break;
             case 6:
                 if ($draft->isPayment()) {
@@ -133,38 +160,12 @@ class Applications extends Model {
                     $draft->setReadyToWorkStatus();
                     $return_array['message'] = "Заявка №".$draft->getId()." создана";
                     Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
-                    $return_array['buttons'] = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
                 } else {
                     $draft->setField('MANAGER_COMENT', $text);
                     $draft->setField('DRAFT_STEP', 7);
                     $draft->setReadyToWorkStatus();
                     $return_array['message'] = "Заявка №".$draft->getId()." создана";
                     Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID'), true), $draft->getField('ID'));
-                    $return_array['buttons'] = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
                 }
 
                 break;
@@ -196,20 +197,23 @@ class Applications extends Model {
         ]);
         //Формируем сообщение ответственному
         $resp_text = "Заявка №".$needCancel->getField('ID')." была отклонена менеджером.\nПричина отмены - ".$text;
+
         if($prev_status!=3) {
-            if($needCancel->isPayment())
+            if($needCancel->isPayment()) {
                 Telegram::sendMessageToResp($resp_text);
-            else
+                \Api\Sender::send($needCancel, $resp_text);
+            } else {
                 Telegram::sendMessageToCollResp($resp_text);
+            }
         }
         return $return_array;
     }
 
     /*продолжение заполнения заявки*/
-    public function restoreProcessDraft($manager_id)
+    public function restoreProcessDraft($app_id)
     {
         $return_array = [];
-        $draft = $this->getDrarted($manager_id);
+        $draft = $this->find($app_id);
         //получаем шаг, на котором закончено заполнение заявки, и подставляем нужную разметку
         switch ($draft->getField('DRAFT_STEP')){
             case 0:
@@ -219,10 +223,10 @@ class Applications extends Model {
                 $return_array = ManagerMarkup::getOperationTypeMarkup('', $draft->getField('ID'));
                 break;
             case 2:
-                $return_array = ManagerMarkup::getAgentSecondNameMarkup($this->prepareAppDataMessage($draft->getField('ID')));
+                $return_array = ManagerMarkup::getAgentSecondNameMarkup($this->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
                 break;
             case 3:
-                $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')));
+                $return_array = ManagerMarkup::getAgentPhoneMarkup($this->prepareAppDataMessage($draft->getField('ID')), '', $draft->getField('ID'));
                 break;
             case 5:
                 $return_array = ManagerMarkup::getComentMarkup($this->prepareAppDataMessage($draft->getField('ID')), $draft->getField('ID'));
@@ -239,7 +243,6 @@ class Applications extends Model {
         $message = "<b>Информация по заявке №".$app->getId()."</b> \n";
         if($application['PROPERTY_OPERATION_TYPE_VALUE'])
             $message.= "Тип операции - <b>".$application['PROPERTY_OPERATION_TYPE_VALUE']."</b> \n";
-        $message.= "Статус заявки - <b>".$app->getField('STATUS')."</b> \n";
         if($app->getField('AGENT_OFF_NAME'))
             $message.= "Имя контрагента в учете - <b>".$app->getField('AGENT_OFF_NAME')."</b> \n";
         if(!$is_cash_resp) {
@@ -247,6 +250,17 @@ class Applications extends Model {
                 $message .= "Имя с которым обращаться к контрагенту - <b>" . $application['PROPERTY_AGENT_NAME_VALUE'] . "</b> \n";
             if ($application['PROPERTY_CONTACT_PHONE_VALUE'])
                 $message .= "Номер телефона контрагента - <b>" . $application['PROPERTY_CONTACT_PHONE_VALUE'] . "</b> \n";
+        } else {
+            if($app->hasBeforeApps()){
+                $message .= "Выдать после - <b>";
+                $give_after_array = [];
+                foreach ($app->getField('GIVE_AFTER') as $after){
+                    $after_app = (new Applications())->find($after);
+                    $give_after_array[] = "№".$after_app->getId()." (".$after_app->contragent().")";
+                }
+                $message.=implode(', ', $give_after_array);
+                $message.="</b>\n";
+            }
         }
         /*if($application['PROPERTY_SUMM_VALUE'])
             $message.= "Сумма сделки - <b>".number_format($application['PROPERTY_SUMM_VALUE'], 0, '.', ' ')."</b> \n";*/
@@ -260,6 +274,7 @@ class Applications extends Model {
         if($application['PROPERTY_CREW_VALUE']>0) {
             $message .= "Экипаж - <b>" . $app->crew()->getName() . "</b> \n";
         }
+        $message.= "Менеджер - <b>".$app->manager()->getField('NAME')."</b> \n";
         if($application['PROPERTY_MANAGER_COMENT_VALUE'])
             $message.= "Комментарий менеджера - <b>".$application['PROPERTY_MANAGER_COMENT_VALUE']."</b> \n";
         if($app->getField('RESP_COMENT'))
@@ -274,22 +289,37 @@ class Applications extends Model {
 
     public function getAppsForResp()
     {
-        return $this->where('PROPERTY_STATUS', [4, 15, 49])->where('PROPERTY_OPERATION_TYPE', 8)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [4, 15, 49, 44])->where('!PROPERTY_DRAFT', 1)->where('PROPERTY_OPERATION_TYPE', 8)->where('!PROPERTY_FOR_COL_RESP', 1)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])->get()->getArray();
     }
 
     public function getAppsForCollResp()
     {
-        return $this->where('PROPERTY_STATUS', [4, 15, 49])->where('PROPERTY_OPERATION_TYPE', 7)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])->get()->getArray();
+        $list_array = [];
+        $give_list = $this->where('PROPERTY_STATUS', [4, 15, 49])->where('PROPERTY_OPERATION_TYPE', 7)->where('PROPERTY_FOR_COL_RESP', 1)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])->get()->getArray();
+        $pay_list = $this->where('PROPERTY_STATUS', [4, 15, 49])->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_FOR_COL_RESP', 1)->where('>=PROPERTY_RESP_STEP', 2)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])->get()->getArray();
+        foreach ($give_list as $item)
+            $list_array[$item['ID']] = $item;
+        foreach ($pay_list as $item)
+            $list_array[$item['ID']] = $item;
+        return $list_array;
     }
 
     public function getToWorkAppsForCollResp()
     {
-        return $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 7)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])->get()->getArray();
+        $list_array = [];
+        $give_list = $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 7)->where('PROPERTY_FOR_COL_RESP', 1)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])->get()->getArray();
+        $pay_list = $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_FOR_COL_RESP', 1)->where('>=PROPERTY_RESP_STEP', 2)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE'])->get()->getArray();
+
+        foreach ($give_list as $item)
+            $list_array[$item['ID']] = $item;
+        foreach ($pay_list as $item)
+            $list_array[$item['ID']] = $item;
+        return $list_array;
     }
 
     public function getToWorkAppsForCashResp()
     {
-        return $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_RESP_STEP', false)->select(["IBLOCK_ID", 'NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])->buildQuery()->getArray();
+        return $this->where('PROPERTY_STATUS', 48)->where('PROPERTY_OPERATION_TYPE', 8)->where('!PROPERTY_DRAFT', 1)->where('PROPERTY_RESP_STEP', false)->select(["IBLOCK_ID", 'NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])->buildQuery()->getArray();
     }
 
     public function setToManagerCancelComent()
@@ -351,22 +381,23 @@ class Applications extends Model {
         $this->setField('RESP_CANCEL_REASON', $text);
         $this->setField('STATUS', 6);
         $return_array['message'] = "Заявка №".$this->getField('ID')." успешно отклонена";
-
+        (new Order())->cancelByAppID($this->getField('ID'));
         //Формируем сообщение менеджеру
         $manager_text['message'] = "Заявка №".$this->getField('ID')." была отклонена ответственным.\nПричина отмены - ".$text;
         Telegram::sendMessageToManager($manager_text, $this->getField('ID'));
+        \Api\Sender::send($this, $manager_text['message']);
         return $return_array;
     }
 
     public function getInProcessByResp()
     {
-        return (int)$this->where('PROPERTY_STATUS', 15)->where('!RESP_STEP', false)->first()->getField('ID');
-        //return (int)$this->where('PROPERTY_STATUS', 15)->where('PROPERTY_OPERATION_TYPE', 8)->where('!RESP_STEP', false)->first()->getField('ID');
+        return (int)$this->where('PROPERTY_STATUS', 15)->where('PROPERTY_OPERATION_TYPE', 8)->where('!RESP_STEP', false)->first()->getField('ID');
     }
 
     public function getInProcessByCollResp()
     {
-        return (int)$this->where('PROPERTY_STATUS', 15)->where('!RESP_STEP', false)->first()->getField('ID');
+        $id = Common::DuringAppByCollResponsible();
+        return (int)$this->find($id)->getField('ID');
     }
 
     public function setFieldToInProcess($app_id, $text){
@@ -396,26 +427,69 @@ class Applications extends Model {
                         if ($app->getField('SUM_ENTER_STEP')==1) {
                             if (!is_numeric($text)) {
                                 $return_array['message'] = "Сумма должна быть числовым значением\nПовторите ввод суммы";
+                                $inline_keys[] = [
+                                    [
+                                        'text' => "Сброс заявки",
+                                        "callback_data" => 'ResetRespApp_' . $app->getId()
+                                    ]
+                                ];
+                                $return_array['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => $inline_keys
+                                ]);
                             } else {
                                 $app->setField('SUMM', $text);
                                 $app->setSumMultiple($text);
                                 $app->setField('SUM_ENTER_STEP', 0);
-                                $return_array['message'] = "Данные записаны. Есть сумма в другой валюте?";
-                                $return_array['buttons'] = json_encode([
-                                    'resize_keyboard' => true,
-                                    'inline_keyboard' => [
-                                        [
+                                $cash_room_currencies = $app->cash_room()->getCurrencies();
+                                $exists_app_currencies = (new Applications())->find($app->getId())->getCurrencies();
+                                if(count($cash_room_currencies)==count($exists_app_currencies)){
+                                    $return_array['message'] = "Данные записаны. Введенная сумма ".implode(', ', (new Applications())->find($app->getId())->getCash());
+                                    $return_array['buttons'] = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => [
                                             [
-                                                'text' => 'Нет. Продолжить выполнение',
-                                                "callback_data" => "CompleteAddSum_".$app->getId()
-                                            ],
-                                            [
-                                                'text' => 'Да. Ввести еще сумму',
-                                                "callback_data" => "AddMoreSum_".$app->getId()
-                                            ],
+                                                [
+                                                    'text' => 'Изменить сумму',
+                                                    "callback_data" => "CorrectPrevSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Продолжить',
+                                                    "callback_data" => "CompleteAddSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetRespApp_' . $app->getId()
+                                                ]
+                                            ]
                                         ]
-                                    ]
-                                ]);
+                                    ]);
+                                } else {
+                                    $return_array['message'] = "Данные записаны. Введенная сумма ".implode(', ', (new Applications())->find($app->getId())->getCash())." Есть сумма в другой валюте?";
+                                    $return_array['buttons'] = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => [
+                                            [
+                                                [
+                                                    'text' => 'Изменить сумму',
+                                                    "callback_data" => "CorrectPrevSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Продолжить',
+                                                    "callback_data" => "CompleteAddSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Добавить сумму',
+                                                    "callback_data" => "AddMoreSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetRespApp_' . $app->getId()
+                                                ]
+                                            ]
+                                        ]
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -435,22 +509,55 @@ class Applications extends Model {
                                 $app->setField('SUMM', $text);
                                 $app->setSumMultiple($text);
                                 $app->setField('SUM_ENTER_STEP', 0);
-                                $return_array['message'] = "Данные записаны. Есть сумма в другой валюте?";
-                                $return_array['buttons'] = json_encode([
-                                    'resize_keyboard' => true,
-                                    'inline_keyboard' => [
-                                        [
+                                $cash_room_currencies = $app->cash_room()->getCurrencies();
+                                $exists_app_currencies = (new Applications())->find($app->getId())->getCurrencies();
+                                if(count($cash_room_currencies)==count($exists_app_currencies)){
+                                    $return_array['message'] = "Данные записаны. Введенная сумма ".implode(', ', (new Applications())->find($app->getId())->getCash());
+                                    $return_array['buttons'] = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => [
                                             [
-                                                'text' => 'Нет. Продолжить выполнение',
-                                                "callback_data" => "CompleteAddSum_".$app->getId()
-                                            ],
-                                            [
-                                                'text' => 'Да. Ввести еще сумму',
-                                                "callback_data" => "AddMoreSum_".$app->getId()
-                                            ],
+                                                [
+                                                    'text' => 'Изменить сумму',
+                                                    "callback_data" => "CorrectPrevSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Продолжить',
+                                                    "callback_data" => "CompleteAddSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetRespApp_' . $app->getId()
+                                                ]
+                                            ]
                                         ]
-                                    ]
-                                ]);
+                                    ]);
+                                } else {
+                                    $return_array['message'] = "Данные записаны. Введенная сумма ".implode(', ', (new Applications())->find($app->getId())->getCash()).". Есть сумма в другой валюте?";
+                                    $return_array['buttons'] = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => [
+                                            [
+                                                [
+                                                    'text' => 'Изменить сумму',
+                                                    "callback_data" => "CorrectPrevSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Продолжить',
+                                                    "callback_data" => "CompleteAddSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Добавить сумму',
+                                                    "callback_data" => "AddMoreSum_" . $app->getId()
+                                                ],
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetRespApp_' . $app->getId()
+                                                ]
+                                            ]
+                                        ]
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -473,12 +580,13 @@ class Applications extends Model {
                     $app->setStatus(25);
                     $app->setField('RESP_STEP', 4);
                     $return_array['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем подтверждения экипажем.";
+                    Common::ResetDuringAppByCollResponsible();
                     $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), $app->crew()->getId(), 'new_app');
                     Telegram::sendMessageToCollector($app->crew()->getId(), $collector_markup);
 
                     $manager_text = "По заявке №".$app->getId()." планируемое время забора от контрагента ".$app->getField('AGENT_OFF_NAME')." - ".$app->getTime();
-                    Telegram::sendCommonMessageToManager($manager_text);
-                    Telegram::sendMessageToResp($manager_text);
+                    Telegram::sendMessageToManagerByAppID($app->getId(), $manager_text);
+                    //Telegram::sendMessageToResp($manager_text);
 
                     $contact_message = "По заявке №".$app->getId()." планируемое время забора  - ".$app->getTime().". Планируемое место забора - ".$app->getAddress();
 
@@ -534,12 +642,13 @@ class Applications extends Model {
                     $app->setStatus(25);
                     $app->setField('RESP_STEP', 7);
                     $return_array['message'] = "Информация по заявке №".$app->getId()." сохранена. Ожидаем подтверждения экипажем.";
+                    Common::ResetDuringAppByCollResponsible();
                     $collector_markup = CollectorMarkup::getMarkupByCollector($app->getId(), $app->crew()->getId(), 'new_app');
                     Telegram::sendMessageToCollector($app->crew()->getId(), $collector_markup);
 
                     $manager_text = "По заявке №".$app->getId()." планируемое время забора от контрагента ".$app->getField('AGENT_OFF_NAME')." - ".$app->getTime();
-                    Telegram::sendCommonMessageToManager($manager_text);
-                    Telegram::sendMessageToResp($manager_text);
+                    Telegram::sendMessageToManagerByAppID($app->getId(), $manager_text);
+                    //Telegram::sendMessageToResp($manager_text);
 
                     $contact_message = "По заявке №".$app->getId()." планируемое время забора  - ".$app->getTime().". Планируемое место забора - ".$app->getAddress();
 
@@ -616,7 +725,7 @@ class Applications extends Model {
 
     public function getPaymentsAppsForCRE()
     {
-        return $this->where('PROPERTY_STATUS', [23, 52])->where('PROPERTY_OPERATION_TYPE', 8)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [23, 52, 54])->where('PROPERTY_OPERATION_TYPE', 8)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_CREW'])->get()->getArray();
     }
 
     public function setStatus($int)
@@ -654,7 +763,7 @@ class Applications extends Model {
 
     public function getAppsInDeliveryByCrew($crew_id)
     {
-        return $this->where('PROPERTY_STATUS', 20)->where('PROPERTY_CREW', $crew_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_OPERATION_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [20, 52])->where('PROPERTY_CREW', $crew_id)->where('!PROPERTY_TO_TOMORROW', 1)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_OPERATION_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME'])->get()->getArray();
     }
 
     public function setComplete()
@@ -675,9 +784,9 @@ class Applications extends Model {
                 $last = new Applications();
                 $main_app = $main_appl->where('PROPERTY_GIVE_AFTER', $this->getId())->where('PROPERTY_STATUS', 44)->first();
                 $last_apps = $last->whereNot('PROPERTY_STATUS', 27)->where('ID', $main_app->getField('GIVE_AFTER'))->get()->getArray();
-                $cash_resp_markup['message'] = "Заявка №".$main_app->getId()."\nВыполнена заявка, указанная как необходимая для выполнения текущей.\n";
+                $cash_resp_markup['message'] = "Заявка №".$main_app->getId()." (".$main_app->getField("AGENT_OFF_NAME").")\nВыполнена заявка, указанная как необходимая для выполнения текущей.\n";
                 $cash_resp_markup['message'].= "Информация по выполненной заявке:\n";
-                $cash_resp_markup['message'].= "Заявка № <b>".$this->getId()."</b>. Контрагент - <b>".$this->getField('AGENT_NAME')."</b>\n\n";
+                $cash_resp_markup['message'].= "Заявка № <b>".$this->getId()."</b>. Контрагент - <b>".$this->getField('AGENT_OFF_NAME')."</b> Сумма - ".implode(', ', $this->getCash())."\n\n";
                 if(ArrayHelper::checkFullArray($last_apps)){
                     $cash_resp_markup['message'].= "Список оставшихся заявок для выполнения текущей заявки\n";
                     foreach ($last_apps as $last_app) {
@@ -798,7 +907,7 @@ class Applications extends Model {
 
     public function getGiveAppsByCrew($crew_id)
     {
-        return $this->where('PROPERTY_STATUS', 23)->where('PROPERTY_OPERATION_TYPE', 7)->where('PROPERTY_CREW', $crew_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME', 'CREATED_DATE'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [23, 25])->where('PROPERTY_OPERATION_TYPE', 7)->where('PROPERTY_CREW', $crew_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME', 'CREATED_DATE'])->get()->getArray();
     }
 
     public function getNewAppsByCrew($crew_id)
@@ -815,6 +924,12 @@ class Applications extends Model {
     {
         $orders = new Order();
         return $orders->where("PROPERTY_APP", $this->getId())->buildQuery()->getArray();
+    }
+
+    public function order_object()
+    {
+        $orders = new Order();
+        return $orders->where("PROPERTY_APP", $this->getId())->first();
     }
 
     public function currency(): Currency
@@ -835,7 +950,7 @@ class Applications extends Model {
 
     public function getPaymentsAppsByCrew($crew_id)
     {
-        return $this->where('PROPERTY_STATUS', 23)->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_CREW', $crew_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME'])->get()->getArray();
+        return $this->where('PROPERTY_STATUS', [23, 25])->where('PROPERTY_OPERATION_TYPE', 8)->where('PROPERTY_CREW', $crew_id)->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME'])->get()->getArray();
     }
 
     private function isBeforeApp(): bool
@@ -853,10 +968,12 @@ class Applications extends Model {
     {
         $this->setField('STATUS', 48, true);
         if ((int)$this->getField('RESP_STEP')==0){
-            if($this->isPayment()){
+            $this->manager()->resetCreateAppSession();
+            if($this->isPayment()) {
                 Telegram::sendMessageToResp($this->prepareAppDataMessage($this->getField('ID'), true), $this->getField('ID'));
                 $contact_message = "По заявке №".$this->getId()." планируется операция по выдаче.";
             } else {
+                $this->setForColResp();
                 Telegram::sendMessageToCollResp($this->prepareAppDataMessage($this->getField('ID')), $this->getField('ID'));
                 $message_to_resp = "По заявке №".$this->getId()." планируется операция по забору.";
                 $message_to_resp.= "\nКонтрагент - ".$this->getField('AGENT_OFF_NAME');
@@ -878,6 +995,12 @@ class Applications extends Model {
     public function isReadyToWork(): bool
     {
         return $this->getStatus()==48;
+    }
+
+
+    public function isInProcess(): bool
+    {
+        return $this->getStatus()==49;
     }
 
     public function setRespInProcessStatus()
@@ -915,7 +1038,7 @@ class Applications extends Model {
         return $this
             ->whereNot('ID', $already_exists)
             ->where('PROPERTY_OPERATION_TYPE', 7)
-            ->where('!PROPERTY_STATUS', [6, 22, 24, 27, 48, 49])
+            ->where('!PROPERTY_STATUS', [6, 22, 24, 27])
             ->select(['ID', 'NAME', 'PROPERTY_SUMM', 'PROPERTY_AGENT_OFF_NAME'])
             ->buildQuery()
             ->getArray();
@@ -955,8 +1078,13 @@ class Applications extends Model {
                 if($old_value>0)
                     $new_values[] = ["VALUE" => $old_value, "DESCRIPTION"=>""];
         }
-        $new_values[] = ["VALUE" => $param, "DESCRIPTION"=>""];
-        $this->setField('CURRENCY', $new_values);
+        if(!ArrayHelper::checkFullArray($old_values)){
+            $new_values[] = ["VALUE" => $param, "DESCRIPTION" => ""];
+            $this->setField('CURRENCY', $new_values);
+        } elseif (!in_array($param, $old_values)) {
+            $new_values[] = ["VALUE" => $param, "DESCRIPTION" => ""];
+            $this->setField('CURRENCY', $new_values);
+        }
     }
 
     public function setSumMultiple($param)
@@ -1007,5 +1135,119 @@ class Applications extends Model {
     public function getCurrencies()
     {
         return $this->getField('CURRENCY');
+    }
+
+    public function removeLastSum()
+    {
+
+        $currencies = $this->getCurrencies();
+        $sums = $this->getSum();
+        unset($currencies[count($currencies)-1]);
+        unset($sums[count($sums)-1]);
+        $currencies = count($currencies)>0?$currencies:false;
+        $sums = count($sums)>0?$sums:false;
+        (new \CIBlockElement())->SetPropertyValuesEx(
+            $this->getId(),
+            $this->getIblock(),
+            array('CURRENCY' => $currencies)
+        );
+        (new \CIBlockElement())->SetPropertyValuesEx(
+            $this->getId(),
+            $this->getIblock(),
+            array('SUMM' => $sums)
+        );
+    }
+
+    public function isDraft()
+    {
+        return $this->getStatus()==3;
+    }
+
+    public function setFieldToInDraftByResp($app_id, $text)
+    {
+        $return_array = [];
+        $draft = $this->find($app_id);
+        switch ($draft->getField('DRAFT_STEP')){
+            case 0:
+                $draft->setField('AGENT_OFF_NAME', $text);
+                $draft->setField('DRAFT_STEP', 1);
+                $return_array = RespMarkup::getCreateAppMarkup($app_id);
+                break;
+            case 3:
+                $draft->setField('MANAGER_COMENT', $text);
+                if($draft->isPayment()){
+                    $draft->setField('DRAFT_STEP', 7);
+                    Common::ResetDuringCreateAppByResponsible();
+                    Common::SetDuringAppByResponsible($draft->getId());
+                    $draft->setField('RESP_STEP', 0);
+                    $draft->setField('STATUS', 15);
+                    $return_array = RespMarkup::getMarkupByResp($draft->getId());
+                } else {
+                    Common::ResetDuringCreateAppByResponsible();
+                    $draft->setField('DRAFT_STEP', 7);
+                    $draft->setReadyToWorkStatus();
+                    $return_array['message'] = "Заявка №" . $draft->getId() . " создана";
+                }
+                //Telegram::sendMessageToResp($draft->prepareAppDataMessage($draft->getField('ID'), true), $draft->getField('ID'));
+                break;
+
+        }
+        return $return_array;
+    }
+
+    public function setForColResp()
+    {
+        $this->setField('FOR_COL_RESP', 1);
+    }
+
+    public function contragent()
+    {
+        return $this->getField("AGENT_OFF_NAME")??"";
+    }
+
+    public function resetApp()
+    {
+
+        $this->resetField('SUMM');
+        $this->resetField('CURRENCY');
+        $this->resetField('SUM_ENTER_STEP');
+        if($this->hasBeforeApps()){
+            $this->setField('RESP_STEP', 1);
+            $this->setField('STATUS', 44);
+        } else {
+            $this->resetField('GIVE_AFTER');
+            $this->resetField('RESP_STEP');
+            $this->setField('STATUS', 48, true);
+        }
+        Common::ResetDuringAppByResponsible();
+    }
+
+    public function getFullName():string
+    {
+        $contragent = $this->contragent()!=""?" (".$this->contragent().")":"";
+        return "№".$this->getId().$contragent;
+    }
+    public function resetField($string)
+    {
+        $this->setField($string, false);
+    }
+
+    public function resetCollRespApp()
+    {
+        $this->resetField('ADDRESS');
+        $this->resetField('TIME');
+        $this->resetField('CREW');
+        if($this->isPayment()){
+            $this->setField('RESP_STEP', 2);
+        } else {
+            $this->resetField('RESP_STEP');
+        }
+        $this->setField('STATUS', 48, true);
+        Common::ResetDuringAppByCollResponsible();
+    }
+
+    public function getCrewAppsForCollResp()
+    {
+        return $this->where('PROPERTY_STATUS', [23, 25, 20])->select(['NAME', 'PROPERTY_STATUS', 'PROPERTY_TYPE', 'PROPERTY_CREW', 'CREATED_DATE', 'PROPERTY_SUMM', 'PROPERTY_AGENT_NAME'])->get()->getArray();
     }
 }

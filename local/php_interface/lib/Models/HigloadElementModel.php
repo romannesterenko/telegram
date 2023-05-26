@@ -10,6 +10,7 @@ abstract class HigloadElementModel {
     public $array= [];
     protected array $filter= [];
     protected array $select= [];
+    protected int $limit = 0;
     protected array $order= [];
 
     public function __construct()
@@ -67,11 +68,20 @@ abstract class HigloadElementModel {
         $this->order[$field] = 'ASC';
         return $this;
     }
+    public function limit($int)
+    {
+        if($int>0){
+            $this->limit = $int;
+        }
+        return $this;
+    }
     public function get(): HigloadElementModel
     {
         $params['filter'] = $this->filter;
         if(\Helpers\ArrayHelper::checkFullArray($this->select))
             $params['select'] = $this->select;
+        if($this->limit>0)
+            $params['limit'] = $this->limit;
         if(\Helpers\ArrayHelper::checkFullArray($this->order))
             $params['order'] = $this->order;
         else

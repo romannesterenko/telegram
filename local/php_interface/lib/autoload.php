@@ -12,6 +12,8 @@
         'Models\Staff' => '/local/php_interface/lib/Models/Staff.php',
         'Models\Currency' => '/local/php_interface/lib/Models/Currency.php',
         'Models\Crew' => '/local/php_interface/lib/Models/Crew.php',
+        'Models\Tasks' => '/local/php_interface/lib/Models/Tasks.php',
+        'Models\Log' => '/local/php_interface/lib/Models/Log.php',
         'Models\Operation' => '/local/php_interface/lib/Models/Operation.php',
         'Models\CashRoom' => '/local/php_interface/lib/Models/CashRoom.php',
         'Models\CashRoomDay' => '/local/php_interface/lib/Models/CashRoomDay.php',

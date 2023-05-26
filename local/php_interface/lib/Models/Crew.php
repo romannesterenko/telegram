@@ -7,6 +7,7 @@ class Crew extends Model {
     public function employee(): Staff
     {
         $staff = new Staff();
-        return $staff->find($this->getField('EMPLOYEE'));
+        return $staff->where('PROPERTY_CREW', $this->getId())->first();
+        //return $staff->find($this->getField('EMPLOYEE'));
     }
 }

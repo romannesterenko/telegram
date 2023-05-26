@@ -1,6 +1,7 @@
 <?php
 namespace Models;
 use Api\Mattermost;
+use Api\Telegram;
 use Helpers\ArrayHelper;
 use Helpers\LogHelper;
 use Helpers\StringHelper;
@@ -71,7 +72,8 @@ class CashRoomDay extends Model {
                 }
             }
         }
-        Mattermost::send($mattermost_message);
+        Telegram::sendMessageToResp($mattermost_message);
+        Mattermost::send($mattermost_message, $n_d_o->cash_room()->getMatterMostChannel());
     }
 
     public function setWaitForSenior()
@@ -135,7 +137,8 @@ class CashRoomDay extends Model {
                 }
             }
         }
-        Mattermost::send($mattermost_message);
+        Telegram::sendMessageToResp($mattermost_message);
+        Mattermost::send($mattermost_message, $n_d_o->cash_room()->getMatterMostChannel());
     }
 
     public function setClosedTime()

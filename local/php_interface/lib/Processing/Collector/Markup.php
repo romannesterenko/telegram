@@ -25,7 +25,7 @@ class Markup
         $app = $applications->find($app_id);
         if ($app->isPayment()) {
             $response['message'] = "Новая заявка №".$app->getID().". Выдача\n";
-            $response['message'].= "Забрать деньги в точке выдачи - ".$app->cash_room()->getName()."\n";
+            $response['message'].= "Забрать деньги в  - ".$app->cash_room()->getName()."\n";
             $response['message'].= "Адрес - ".$app->getAddress()."\n";
             $response['message'].= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
             $response['message'].= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
@@ -44,7 +44,7 @@ class Markup
             ]);
         } else {
             $response['message'] = "Новая заявка №".$app->getID().". Забор\n";
-            $response['message'].= "Забрать деньги в ".$app->getTime()." в точке выдачи - ".$app->getAddress()."\n";
+            $response['message'].= "Забрать деньги в ".$app->getTime()." в  - ".$app->getAddress()."\n";
             $response['message'].= "Контактное лицо - ".$app->getField('AGENT_NAME')."\n";
             $response['message'].= "Телефон - ".$app->getField('CONTACT_PHONE')."\n";
             if($app->getField('RESP_COMENT'))

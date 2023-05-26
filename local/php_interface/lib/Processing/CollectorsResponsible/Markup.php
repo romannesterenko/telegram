@@ -96,25 +96,39 @@ class Markup
         ]);
         return $response;
     }
-    //Выдача. Шаг №1. Сумма сделки
-    public static function getRespAddSumMarkup($error=''): array
-    {
-        $response['message'] = $error."Шаг №1. \nВведите <b>сумму сделки</b>";
-        return $response;
-    }
-
-
 
     public static function getRespAddTimeMarkup($text, $error=''): array
     {
         $response['message'] = $text;
         $response['message'].= "\n\n".$error."Шаг №1. \nВведите <b>время</b>";
+        $response['buttons'] = json_encode([
+            'resize_keyboard' => true,
+            'inline_keyboard' => [
+                [
+                    [
+                        'text' => "Сброс заявки",
+                        "callback_data" => 'ResetRespApp_' . Common::DuringAppByCollResponsible()
+                    ],
+                ]
+            ]
+        ]);
         return $response;
     }
     public static function getRespAddAddressMarkup($text, $error=''): array
     {
         $response['message'] = $text;
         $response['message'].= "\n\n".$error."Шаг №2. \nВведите <b>адрес</b>";
+        $response['buttons'] = json_encode([
+            'resize_keyboard' => true,
+            'inline_keyboard' => [
+                [
+                    [
+                        'text' => "Сброс заявки",
+                        "callback_data" => 'ResetRespApp_' . Common::DuringAppByCollResponsible()
+                    ],
+                ]
+            ]
+        ]);
         return $response;
     }
     public static function getRespAddComentMarkup($text, $app_id): array
@@ -129,6 +143,10 @@ class Markup
                     [
                         'text' => 'Пропустить шаг',
                         "callback_data" => "NotSetRespComment_".$app_id
+                    ],
+                    [
+                        'text' => "Сброс заявки",
+                        "callback_data" => 'ResetRespApp_' . Common::DuringAppByCollResponsible()
                     ],
                 ]
             ]
@@ -154,50 +172,6 @@ class Markup
         ]);
         return $response;
     }
-    public static function getRespCashRoomListMarkup(): array
-    {
-        $response['message'] = "";
-        $cash_rooms = new CashRoom();
-        $list = $cash_rooms->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
-        if (ArrayHelper::checkFullArray($list)) {
-            foreach ($list as $cash_room) {
-                $response['message'] .= CREMarkup::getCashRoomInfoMarkup($cash_room['ID']);
-            }
-        } else {
-            $response['message'] = 'Список касс пуст';
-        }
-        return $response;
-    }
-    public static function getRespCashRoomListMarkupInProcess($text, $id): array
-    {
-        $response['message'] = $text;
-        $response['message'] = '';
-        $cash_room_list = [];
-        $cash_rooms = new CashRoom();
-        $applications = new Applications();
-        $app = $applications->find($id);
-        $list = $cash_rooms->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
-        if($app->isPayment()){
-            $response['message'].= "Шаг №2. \nВыберите <b>Кассу</b>";
-        }else{
-            $response['message'].= "Шаг №4. \nВыберите <b>Кассу</b>";
-        }
-        $response['message'].= "\nИнформация по кассам:\n";
-        if (ArrayHelper::checkFullArray($list)) {
-            foreach ($list as $cash_room) {
-                $response['message'] .= CREMarkup::getCashRoomInfoMarkup($cash_room['ID']);
-                $cash_room_list[] = [
-                    'text' => $cash_room['NAME'],
-                    "callback_data" => "setCashRoomToApp_".$app->getId().'_'.$cash_room['ID']
-                ];
-            }
-        }
-        $response['buttons'] = json_encode([
-            'resize_keyboard' => true,
-            'inline_keyboard' => [$cash_room_list]
-        ]);
-        return $response;
-    }
     private static function getRespCrewListMarkup($text, $id): array
     {
         $crew_list = [];
@@ -210,16 +184,26 @@ class Markup
 
             foreach ($list as $crew) {
                 $crew_list[] = [
+                    [
 
                     'text' => $crew['NAME'],
                     "callback_data" => "setCrewToApp_".$id.'_'.$crew['ID']
 
+                    ]
                 ];
             }
         }
+        $crew_list[] = [
+            [
+
+                'text' => "Сброс заявки",
+                "callback_data" => 'ResetRespApp_' . Common::DuringAppByCollResponsible()
+
+            ]
+        ];
         $response['buttons'] = json_encode([
             'resize_keyboard' => true,
-            'inline_keyboard' => [$crew_list]
+            'inline_keyboard' => $crew_list
         ]);
         return $response;
     }

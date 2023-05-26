@@ -56,6 +56,7 @@ class Actions
     }
     public static function process(Staff $employee, $data, $is_callback): array
     {
+        $buttons = Buttons::getCommonButtons();
         if($is_callback){
             $data['chat']['id'] = $data['message']['chat']['id'];
             if(!empty($data['data'])){
@@ -66,54 +67,8 @@ class Actions
             }
         } else {
             $cashRoomDays = new CashRoomDay();
-            /*$buttons = json_encode([
-                'resize_keyboard' => true,
-                'keyboard' => [
-                    [
-                        [
-                            'text' => Common::getButtonText('cre_start_new_work_day'),
-                        ],
-                    ]
-                ]
-            ]);
-            if($cashRoomDays->isExistsOpenToday($employee->cash_room()->getId())){
-                $buttons = json_encode([
-                    'resize_keyboard' => true,
-                    'keyboard' => [
-                        [
-                            [
-                                'text' => Common::getButtonText('cre_apps_list_payment'),
-                            ],
-                            [
-                                'text' => Common::getButtonText('cre_apps_list_receive'),
-                            ],
-                            [
-                                'text' => Common::getButtonText('cre_end_work_day'),
-                            ],
-                        ]
-                    ]
-                ]);
 
-            }
-            if($cashRoomDays->isExistsClosingStarted()){
-                $buttons = json_encode([
-                    'resize_keyboard' => true,
-                    'keyboard' => [
-                        [
-                            [
-                                'text' => Common::getButtonText('cre_apps_list_payment'),
-                            ],
-                            [
-                                'text' => Common::getButtonText('cre_apps_list_receive'),
-                            ],
-                            [
-                                'text' => Common::getButtonText('cre_end_work_day'),
-                            ],
-                        ]
-                    ]
-                ]);
-            }*/
-            $buttons = Buttons::getCommonButtons();
+
             if(str_contains($data['text'], Common::getButtonText('cre_apps_list_receive')." (")){
                 $arr = explode(" (", $data['text']);
                 $data['text'] = $arr[0];
@@ -171,7 +126,12 @@ class Actions
                         $cashRoomDays = new CashRoomDay();
                         $crd = $cashRoomDays->getOpeningStartedDays();
                         if($crd->getId()>0){
-                            $message = 'Действие невозможно. Вы уже открываете смену';
+                            $currencies_array = $crd->cash_room()->getCurrencies();
+                            $step = (int)$crd->getField("SUM_ENTER_STEP");
+                            $currency = (new Currency())->find($currencies_array[$step]);
+                            $message = "Действие невозможно. Вы уже открываете смену\n";
+                            $message.= $crd->cash_room()->getField('NAME').".";
+                            $message.= "\nСумма в ".$currency->getGenitive();
                         } else {
                             $arr = self::startNewCashRoomDay();
                             $message = $arr['message'];
@@ -181,34 +141,65 @@ class Actions
                     }
                     break;
                 case Common::getButtonText('cre_end_work_day'):
+                    //Common::resetCloseDaySession();
                     $cashRoomDays = new CashRoomDay();
                     $open_today = $cashRoomDays->getOpenToday();
-                    if(count($open_today)>0){
-                        foreach ($open_today as $cashroomday){
-                            $this_days = new CashRoomDay();
-                            $currencies_obj = new Currency();
-                            $this_day = $this_days->find($cashroomday['ID']);
-                            $this_day->setClosing();
-                            $currencies = $this_day->cash_room()->getCurrencies();
-                            if(!empty($currencies[0])) {
-                                $currency = $currencies_obj->find($currencies[0]);
-                                $message = $this_day->cash_room()->getName() . "\nСумма в ".$currency->getGenitive();
-                                $buttons = json_encode([
-                                    'resize_keyboard' => true,
-                                    'inline_keyboard' => [
+                    if(Common::getCREGiveMoneySession()>0) {
+                        $message = "Невозможно начать закрытие смены! Вы работаете с заявкой на выдачу №".Common::getCREGiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } elseif (Common::getCREReceivePaybackMoneySession()>0) {
+                        $message = "Невозможно! Вы работаете с возвратом заявки №".Common::getCREReceivePaybackMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } elseif (Common::getCREReceiveMoneySession()>0) {
+                        $message = "Невозможно! Вы работаете с заявкой на забор №".Common::getCREReceiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } elseif (Common::getCloseDaySession()>0) {
+                        $message = "Вы уже закрываете смену\n";
+                        $this_day = (new CashRoomDay())->find(Common::getCloseDaySession());
+                        $currencies = $this_day->cash_room()->getCurrencies();
+                        if (!empty($currencies[0])) {
+                            $currency = (new Currency())->find($currencies[0]);
+                            $message.= $this_day->cash_room()->getName() . "\nСумма в " . $currency->getGenitive();
+                            $buttons = json_encode([
+                                'resize_keyboard' => true,
+                                'inline_keyboard' => [
+                                    [
                                         [
-                                            [
-                                                'text' => 'Отменить завершение смены',
-                                                "callback_data" => 'ResetCloseDay_' . $this_day->getId()
-                                            ]
+                                            'text' => 'Отменить завершение смены',
+                                            //"callback_data" => 'ResetCloseDay_' . $this_day->getId()
+                                            "callback_data" => 'ResetCloseDays'
                                         ]
                                     ]
-                                ]);
-                            }
-                            break;
+                                ]
+                            ]);
                         }
                     } else {
-                        $message = "Неверная операция";
+                        if (count($open_today) > 0) {
+                            foreach ($open_today as $cashroomday) {
+                                $this_days = new CashRoomDay();
+                                $currencies_obj = new Currency();
+                                $this_day = $this_days->find($cashroomday['ID']);
+                                $this_day->setClosing();
+                                Common::setCloseDaySession($cashroomday['ID']);
+                                $currencies = $this_day->cash_room()->getCurrencies();
+                                if (!empty($currencies[0])) {
+                                    $currency = $currencies_obj->find($currencies[0]);
+                                    $message = $this_day->cash_room()->getName() . "\nСумма в " . $currency->getGenitive();
+                                    $buttons = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => [
+                                            [
+                                                [
+                                                    'text' => 'Отменить завершение смены',
+                                                    //"callback_data" => 'ResetCloseDay_' . $this_day->getId()
+                                                    "callback_data" => 'ResetCloseDays'
+                                                ]
+                                            ]
+                                        ]
+                                    ]);
+                                }
+                                break;
+                            }
+                        } else {
+                            $message = "Неверная операция";
+                        }
                     }
                     break;
                 case '/start':
@@ -220,9 +211,7 @@ class Actions
                     $cashRoomDays = new CashRoomDay();
                     $cashRooms = new CashRoom();
                     $applications = new Applications();
-                    $return_applications = new Applications();
                     $app = $applications->getNeedSumEnterApp();
-                    $return_application = $return_applications->getNeedSumEnterToPayBack();
                     if($cashRoomDays->isExistsOpeningStartedDays()){
                         $data['text'] = trim(str_replace(" ","",$data['text']));
                         if ( !is_numeric( $data['text'] ) ) {
@@ -257,17 +246,6 @@ class Actions
                                         $currencies_obj = new Currency();
                                         $currency = $currencies_obj->find($currencies_array[$step]);
                                         $message = "Сумма в " . $currency->getGenitive();
-                                        /*$buttons = json_encode([
-                                            'resize_keyboard' => true,
-                                            'inline_keyboard' => [
-                                                [
-                                                    [
-                                                        'text' => 'Отменить начало смены',
-                                                        "callback_data" => 'ResetStartDay_' . $crd->getId()
-                                                    ]
-                                                ]
-                                            ]
-                                        ]);*/
                                     } else {
                                         $sss = new CashRoomDay();
                                         $ssss = $sss->find($crd->getId());
@@ -297,6 +275,7 @@ class Actions
                                                     ]
                                                 ]
                                             ]);
+                                            Telegram::sendMessageToResp($senior_markup['message']);
                                             Telegram::sendMessageToSenior($senior_markup);
                                         } else {
                                             $ssss->setOpen();
@@ -383,6 +362,7 @@ class Actions
                                                     ]
                                                 ]
                                             ]);
+                                            Telegram::sendMessageToResp($senior_markup['message']);
                                             Telegram::sendMessageToSenior($senior_markup);
                                             $another_days = new CashRoomDay();
 
@@ -419,26 +399,26 @@ class Actions
                                 }
                             }
                         }
-                    } elseif ($cashRoomDays->isExistsClosingStarted()) {
+                    } elseif (Common::getCloseDaySession() > 0) {
                         $buttons = Buttons::getCommonButtons();
                         $data['text'] = trim(str_replace(" ","",$data['text']));
                         if ( !is_numeric( $data['text'] ) ) {
                             $message = "Сумма должна быть числовым значением. Повторите ввод";
-                            $day = $cashRoomDays->getClosingStarted();
                             $buttons = json_encode([
                                 'resize_keyboard' => true,
                                 'inline_keyboard' => [
                                     [
                                         [
                                             'text' => 'Отменить завершение смены',
-                                            "callback_data" => 'ResetCloseDay_' . $day->getId()
+                                            //"callback_data" => 'ResetCloseDay_' . $this_day->getId()
+                                            "callback_data" => 'ResetCloseDays'
                                         ]
                                     ]
                                 ]
                             ]);
                         } else {
                             $cashRoomDays = new CashRoomDay();
-                            $crd = $cashRoomDays->getClosingStarted();
+                            $crd = $cashRoomDays->find(Common::getCloseDaySession());
                             if( $crd->getId()>0 ) {
                                 $currencies_array = $crd->cash_room()->getCurrencies();
                                 $step = (int)$crd->getField("SUM_ENTER_STEP");
@@ -453,6 +433,17 @@ class Actions
                                         $currencies_obj = new Currency();
                                         $currency = $currencies_obj->find($currencies_array[$step]);
                                         $message = "Сумма в " . $currency->getGenitive();
+                                        $buttons = json_encode([
+                                            'resize_keyboard' => true,
+                                            'inline_keyboard' => [
+                                                [
+                                                    [
+                                                        'text' => 'Отменить завершение смены',
+                                                        "callback_data" => 'ResetCloseDays'
+                                                    ]
+                                                ]
+                                            ]
+                                        ]);
                                         /*$buttons = json_encode([
                                             'resize_keyboard' => true,
                                             'inline_keyboard' => [
@@ -493,6 +484,7 @@ class Actions
                                                     ]
                                                 ]
                                             ]);
+                                            Telegram::sendMessageToResp($senior_markup['message']);
                                             Telegram::sendMessageToSenior($senior_markup);
                                         } else {
                                             $ssss->setClose();
@@ -505,21 +497,22 @@ class Actions
                                                 $currencies_obj = new Currency();
                                                 $this_day = $this_days->find($cashroomday['ID']);
                                                 $this_day->setClosing();
+                                                Common::setCloseDaySession($this_day->getId());
                                                 $currencies = $this_day->cash_room()->getCurrencies();
                                                 if(!empty($currencies[0])) {
                                                     $currency = $currencies_obj->find($currencies[0]);
                                                     $message = $this_day->cash_room()->getName() . ".\nСумма в ".$currency->getGenitive();
-                                                    /*$buttons = json_encode([
+                                                    $buttons = json_encode([
                                                         'resize_keyboard' => true,
                                                         'inline_keyboard' => [
                                                             [
                                                                 [
                                                                     'text' => 'Отменить завершение смены',
-                                                                    "callback_data" => 'ResetCloseDay_' . $this_day->getId()
+                                                                    "callback_data" => 'ResetCloseDays'
                                                                 ]
                                                             ]
                                                         ]
-                                                    ]);*/
+                                                    ]);
                                                 }
                                                 break;
                                             }
@@ -551,6 +544,7 @@ class Actions
                                                     ]
                                                 ]);
                                             }
+                                            Common::resetCloseDaySession();
                                         }
                                     }
                                 } else {
@@ -566,17 +560,6 @@ class Actions
                                             $currencies_obj = new Currency();
                                             $currency = $currencies_obj->find($currencies_array[$step]);
                                             $message = $crd->cash_room()->getName() . "\nСумма в " . $currency->getGenitive();
-                                            /*$buttons = json_encode([
-                                                'resize_keyboard' => true,
-                                                'inline_keyboard' => [
-                                                    [
-                                                        [
-                                                            'text' => 'Отменить завершение смены',
-                                                            "callback_data" => 'ResetCloseDay_' . $crd->getId()
-                                                        ]
-                                                    ]
-                                                ]
-                                            ]);*/
                                         } else {
                                             $sss = new CashRoomDay();
                                             $ssss = $sss->find($crd->getId());
@@ -584,12 +567,6 @@ class Actions
                                             $another_days = new CashRoomDay();
                                             $another_days_array = $another_days->getOpenToday();
                                             $senior_markup['message'] = $ssss->cash_room()->getName() . ". Закрытие смены. Суммы не совпали при вводе. Поступил запрос на одобрение закрытия смены.";
-                                            /*$cash_room_cash = $ssss->cash_room()->getCash();
-                                            $crd_currencies = $ssss->getField("END_CURRENCIES");
-                                            $crd_sums = $ssss->getField("END_SUM");
-                                            LogHelper::write($cash_room_cash);
-                                            LogHelper::write($crd_currencies);
-                                            LogHelper::write($crd_sums);*/
                                             $fact_sums = $ssss->getField('END_SUM');
                                             $fact_currencies = $ssss->getField('END_CURRENCIES');
                                             $estimated_sums = $ssss->getField('EN_SUM');
@@ -613,6 +590,8 @@ class Actions
                                                     ]
                                                 ]
                                             ]);
+
+                                            Telegram::sendMessageToResp($senior_markup['message']);
                                             Telegram::sendMessageToSenior($senior_markup);
                                             if(count($another_days_array)>0){
                                                 foreach ($another_days_array as $cashroomday){
@@ -620,21 +599,11 @@ class Actions
                                                     $currencies_obj = new Currency();
                                                     $this_day = $this_days->find($cashroomday['ID']);
                                                     $this_day->setClosing();
+                                                    Common::setCloseDaySession($this_day->getId());
                                                     $currencies = $this_day->cash_room()->getCurrencies();
                                                     if(!empty($currencies[0])) {
                                                         $currency = $currencies_obj->find($currencies[0]);
                                                         $message = $this_day->cash_room()->getName() . ". Закрытие смены.\nСумма в ".$currency->getGenitive();
-                                                        /*$buttons = json_encode([
-                                                            'resize_keyboard' => true,
-                                                            'inline_keyboard' => [
-                                                                [
-                                                                    [
-                                                                        'text' => 'Отменить завершение смены',
-                                                                        "callback_data" => 'ResetCloseDay_' . $this_day->getId()
-                                                                    ]
-                                                                ]
-                                                            ]
-                                                        ]);*/
                                                     }
                                                     break;
                                                 }
@@ -666,8 +635,7 @@ class Actions
                                                         ]
                                                     ]);
                                                 }
-
-
+                                                Common::resetCloseDaySession();
                                             }
                                         }
 
@@ -679,62 +647,90 @@ class Actions
                             }
 
                         }
-                    } elseif( $app->getId() > 0 ){
+                    } elseif( Common::getCREReceiveMoneySession() > 0 ){
                         $data['text'] = trim(str_replace(" ","",$data['text']));
                         if ( !is_numeric( $data['text'] ) ) {
                             $message = "Сумма должна быть числовым значением\nВведите привезенную сумму";
                         } else {
-                            /*if( (int)$data['text'] != $app->getSum() ){
-                                $message = "Суммы не совпадают\nВведите привезенную сумму";
-                            } else {*/
-                                if($app->getField('SUM_ENTER_STEP')==1) {
-                                    $app->setSumMultiple($data['text']);
-                                    $app->setField('SUM_ENTER_STEP', 0);
-                                    $message = "Данные записаны. Есть сумма в другой валюте?";
+                            $app = (new Applications())->find(Common::getCREReceiveMoneySession());
+                            if($app->getField('SUM_ENTER_STEP')==1) {
+                                $app->setSumMultiple($data['text']);
+                                $app->setField('SUM_ENTER_STEP', 0);
+                                $cash_room_currencies = $app->cash_room()->getCurrencies();
+                                $exists_app_currencies = (new Applications())->find($app->getId())->getCurrencies();
+                                if(count($cash_room_currencies)==count($exists_app_currencies)){
+                                    $message = "Данные записаны. Введенная сумма ".implode(', ', (new Applications())->find($app->getId())->getCash());
                                     $buttons = json_encode([
                                         'resize_keyboard' => true,
                                         'inline_keyboard' => [
                                             [
                                                 [
-                                                    'text' => 'Нет. Закрыть заявку',
+                                                    'text' => 'Изменить сумму',
+                                                    "callback_data" => "CorrectPrevSum_".$app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Закрыть заявку',
                                                     "callback_data" => "CRECompleteReceiveSum_".$app->getId()
                                                 ],
                                                 [
-                                                    'text' => 'Да. Ввести еще сумму',
+                                                    'text' => 'Сброс заявки',
+                                                    "callback_data" => "ResetCREApp_".$app->getId()
+                                                ]
+                                            ]
+                                        ]
+                                    ]);
+                                } else {
+                                    $message = "Данные записаны. Введенная сумма ".implode(', ', (new Applications())->find($app->getId())->getCash()).". Есть сумма в другой валюте?";
+                                    $buttons = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => [
+                                            [
+                                                [
+                                                    'text' => 'Изменить сумму',
+                                                    "callback_data" => "CorrectPrevSum_".$app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Закрыть заявку',
+                                                    "callback_data" => "CRECompleteReceiveSum_".$app->getId()
+                                                ],
+                                                [
+                                                    'text' => 'Добавить сумму',
                                                     "callback_data" => "CREReceiveSum_".$app->getId()
                                                 ],
+                                                [
+                                                    'text' => 'Сброс заявки',
+                                                    "callback_data" => "ResetCREApp_".$app->getId()
+                                                ]
                                             ]
                                         ]
                                     ]);
                                 }
-                                //$app->setField('SUMM', $data['text']);
-                                /*$order = new Order();
-                                $order->createFromAppID($app->getId());
-                                $ord_app = $ord_apps->find($app->getId());
-                                $ord_app->setComplete();*/
-                                //$markup['message'] = "Заявка №" . (int)$app->getId() . " была успешно выполнена";
-                                /*$cash_room_channel_message = "Информация по заявке №" . (int)$app->getId() . "\n";
-                                $cash_room_channel_message.="Экипаж ".$app->crew()->getName()." передал сумму в размере ".number_format($app->getSum(), 0, '', ' ')." в кассу №".$app->cash_room()->getName();
-                                Mattermost::send($cash_room_channel_message);*/
-                                //Telegram::sendMessageToManager($markup, (int)$app->getId());
-                                //if ($app->isPayment())
-                                //Telegram::sendMessageToResp($markup['message']);
-                                //else
-                                //Telegram::sendMessageToCollResp($markup['message']);
-                                //$message = "Заявка выполнена";
-                            //}
+
+                            }
                         }
-                    } elseif ( $return_application->getId() > 0 ) {
+                    } elseif ( Common::getCREReceivePaybackMoneySession() > 0 ) {
                         $data['text'] = trim(str_replace(" ","",$data['text']));
                         if ( !is_numeric( $data['text'] ) ) {
                             $message = "Сумма должна быть числовым значением\nВведите привезенную сумму";
                         } else {
+                            $return_application = (new Applications())->find(Common::getCREReceivePaybackMoneySession());
                             $cash = $return_application->getCash();
                             if(count($cash) == 1){
                                 $real_sums = $return_application->getRealSum();
                                 $exists_sum = $real_sums[0];
                                 if( (int)$data['text'] != $exists_sum ){
                                     $message = "Суммы не совпадают\nПовторите ввод";
+                                    $inline_keys[] = [
+                                        [
+                                            'text' => "Сброс заявки",
+                                            "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                        ]
+                                    ];
+
+                                    $buttons = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => $inline_keys
+                                    ]);
                                 } else {
                                     $return_application->setReturned();
                                     $orders = $return_application->order();
@@ -746,10 +742,11 @@ class Actions
                                     }
                                     $cash = $return_application->getCash();
                                     $message = "Приход (Возврат) ".$return_application->getField('AGENT_OFF_NAME').". ".implode(", ", $cash)."\n";
-                                    Mattermost::send($message);
+                                    Mattermost::send($message, $return_application->cash_room()->getMatterMostChannel());
                                     $markup['message'] = $return_application->getField("AGENT_OFF_NAME").". №" . (int)$return_application->getId() . ". Средства были возвращены";
                                     Telegram::sendMessageToManager($markup, (int)$return_application->getId());
                                     Telegram::sendMessageToResp($markup['message']);
+                                    Common::resetCREReceivePaybackMoneySession();
                                     $message = "Средства возвращены, заявка №".$return_application->getId()." помечена как отмененная";
                                 }
                             } else {
@@ -758,6 +755,17 @@ class Actions
                                 $exists_sum = $real_sums[$step];
                                 if( (int)$data['text'] != $exists_sum ){
                                     $message = "Суммы не совпадают\nПовторите ввод";
+                                    $inline_keys[] = [
+                                        [
+                                            'text' => "Сброс заявки",
+                                            "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                        ]
+                                    ];
+
+                                    $buttons = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => $inline_keys
+                                    ]);
                                 } else {
                                     $count_of_enters = $step+1;
                                     if($count_of_enters<count($cash)){
@@ -767,6 +775,17 @@ class Actions
                                         if(ArrayHelper::checkFullArray($currencies_array)){
                                             $currency = $currencies->find($currencies_array[$count_of_enters]);
                                             $message = 'Введите привезенную сумму в '.$currency->getGenitive();
+                                            $inline_keys[] = [
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                                ]
+                                            ];
+
+                                            $buttons = json_encode([
+                                                'resize_keyboard' => true,
+                                                'inline_keyboard' => $inline_keys
+                                            ]);
                                         }
                                     } else {
                                         $return_application->setReturned();
@@ -779,10 +798,11 @@ class Actions
                                         }
                                         $cash = $return_application->getCash();
                                         $message = "Приход (Возврат) ".$return_application->getField('AGENT_OFF_NAME').". ".implode(", ", $cash)."\n";
-                                        Mattermost::send($message);
+                                        Mattermost::send($message, $return_application->cash_room()->getMatterMostChannel());
                                         $markup['message'] = "Средства по заявке №" . (int)$return_application->getId() . " были возвращены";
                                         Telegram::sendMessageToManager($markup, (int)$return_application->getId());
                                         Telegram::sendMessageToResp($markup['message']);
+                                        Common::resetCREReceivePaybackMoneySession();
                                         $message = "Средства возвращены, заявка №" . $return_application->getId() . " помечена как отмененная";
                                     }
                                 }

@@ -26,14 +26,83 @@ class Markup
                 break;
             case 1:
                 if($app->isPayment()){
-                    if($app->hasBeforeApps()) {
-                        $markup['message'] = "Заявка оформлена и ожидает выполнения других заявок";
-                        //$markup = self::getRespAddComentMarkup('', $app_id);
+                    if($app->hasBeforeApps()&&$app->getStatus()==44) {
+                        $last_apps = (new Applications())->whereNot('PROPERTY_STATUS', 27)->where('ID', $app->getField('GIVE_AFTER'))->get()->getArray();
+                        $markup['message'] = "Заявка №".$app->getId()." (".$app->contragent().") оформлена и ожидает выполнения других заявок\n";
+                        if(ArrayHelper::checkFullArray($last_apps)){
+                            $markup['message'].= "Список оставшихся заявок для выполнения текущей заявки\n";
+                            foreach ($last_apps as $last_app) {
+                                $markup['message'] .= "\n===================\n";
+                                $markup['message'] .= "Заявка №" . $last_app['ID'] . ". Контрагент - " . $last_app['PROPERTY_AGENT_OFF_NAME_VALUE'];
+                            }
+                            $markup['buttons'] = json_encode([
+                                'resize_keyboard' => true,
+                                'inline_keyboard' => [
+                                    [
+                                        [
+                                            'text' => "Ждать",
+                                            'callback_data' => 'waitMore_'.$app->getId()
+                                        ],
+                                        [
+                                            'text' => "Выдать деньги",
+                                            'callback_data' => 'GiveMoney_'.$app->getId()
+                                        ],
+
+                                    ]
+                                ]
+                            ]);
+                        }else{
+                            $markup['message'].= "Все связанные заявки выполнены, продолжайте оформление\n";
+                            $markup['buttons'] = json_encode([
+                                'resize_keyboard' => true,
+                                'inline_keyboard' => [
+                                    [
+                                        [
+                                            'text' => "Выдать деньги",
+                                            'callback_data' => 'GiveMoney_'.$app->getId()
+                                        ],
+                                    ]
+                                ]
+                            ]);
+                        }
                     } else {
-                        if((int)$app->getField('SUM_ENTER_STEP')==0)
-                            $markup = self::getRespAddCurrencyMarkup('', $app_id);
-                        else
-                            $markup = self::getRespAddSumMarkup('', $app_id);
+                        if((int)$app->getField('SUM_ENTER_STEP')==0) {
+                            $text = '';
+                            if(count($app->getCurrencies())>0&&count($app->getCurrencies())==count($app->getSum())){
+                                $cash = $app->getCash();
+                                $text = "Введенная сумма: ".implode(", ", $cash)."\n";
+                            }
+                            $markup = self::getRespAddCurrencyMarkup($text, $app_id);
+                        } else {
+                            $currencies_array = $app->getCurrencies();
+                            $sums_array = $app->getSum();
+                            $need_currency_key = array_diff(array_keys($currencies_array), array_keys($sums_array));
+                            if(ArrayHelper::checkFullArray($need_currency_key)) {
+                                $currency_id = $currencies_array[current($need_currency_key)];
+                                $currency = (new Currency())->find($currency_id);
+                                $text = '';
+                                $cash = $app->getCash();
+                                if(ArrayHelper::checkFullArray($cash))
+                                    $text = "Введенная сумма: ".implode(", ", $cash)."\n";
+                                $markup['message'] = $text.'Введите сумму в валюте ' . $currency->getName();
+                                $inline_keys[] = [
+                                    [
+                                        'text' => "Сброс заявки",
+                                        "callback_data" => 'ResetRespApp_' . $app->getId()
+                                    ]
+                                ];
+                                $inline_keys[] = [
+                                    [
+                                        'text' => 'В черновик',
+                                        "callback_data" => "SetToDraftApp_".$app->getId()
+                                    ]
+                                ];
+                                $markup['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => $inline_keys
+                                ]);
+                            }
+                        }
                     }
                 } else {
                     $markup = self::getRespAddTimeMarkup('');
@@ -116,22 +185,40 @@ class Markup
             $response['message'].= $text;
         else
             $response['message'] = $text;
-
-        $response['buttons'] = json_encode([
-            'resize_keyboard' => true,
-            'inline_keyboard' => [
-                [
+        $app = (new Applications())->find($app_id);
+        if($app->isPayment()&&(int)$app->getField('RESP_STEP')==0) {
+            $response['buttons'] = json_encode([
+                'resize_keyboard' => true,
+                'inline_keyboard' => [
                     [
-                        'text' => Common::getButtonText('resp_allow_app'),
-                        'callback_data' => 'setToRefinement_'.$app_id
-                    ],
+                        [
+                            'text' => "Одобрить выдачу",
+                            'callback_data' => 'allowAppByResp_' . $app_id
+                        ],
+                        [
+                            'text' => Common::getButtonText('resp_denie_app'),
+                            'callback_data' => 'RespCancelApp_' . $app_id
+                        ],
+                    ]
+                ],
+            ]);
+        } else {
+            $response['buttons'] = json_encode([
+                'resize_keyboard' => true,
+                'inline_keyboard' => [
                     [
-                        'text' => Common::getButtonText('resp_denie_app'),
-                        'callback_data' => 'RespCancelApp_'.$app_id
-                    ],
-                ]
-            ],
-        ]);
+                        [
+                            'text' => Common::getButtonText('resp_allow_app'),
+                            'callback_data' => 'setToRefinement_' . $app_id
+                        ],
+                        [
+                            'text' => Common::getButtonText('resp_denie_app'),
+                            'callback_data' => 'RespCancelApp_' . $app_id
+                        ],
+                    ]
+                ],
+            ]);
+        }
         return $response;
     }
     //Выдача. Шаг №1. Сумма сделки
@@ -143,6 +230,28 @@ class Markup
             $app = $applications->find($app_id);
             if(!$app->isPayment())
                 $response['message'] = $error."Шаг №1. \nВведите <b>сумму сделки</b>";
+            else {
+                $currencies = $app->getCurrencies();
+                $sums = $app->getSum();
+                $array_diff = array_diff(array_keys($currencies), array_keys($sums));
+                $currency = (new Currency())->find($currencies[current($array_diff)]);
+                $response['message'] = "Шаг №2. Введенная сумма: ".implode(", ", $app->getCash())."\nВведите <b>сумму в ".$currency->getGenitive()."</b>";
+            }
+            $response['buttons'] = json_encode([
+                'resize_keyboard' => true,
+                'inline_keyboard' => [
+                    [
+                        [
+                            'text' => 'Сброс заявки',
+                            "callback_data" => "ResetRespApp_".$app_id
+                        ],
+                        [
+                            'text' => 'В черновик',
+                            "callback_data" => "SetToDraftApp_".$app_id
+                        ],
+                    ]
+                ]
+            ]);
         }
 
         return $response;
@@ -154,17 +263,32 @@ class Markup
             $applications = new Applications();
             $app = $applications->find($app_id);
             $list = $app->cash_room()->getCurrencies();
+            $currencies_ = $app->getCurrencies();
             $inline_keys = [];
             foreach ($list as $item) {
-                $currencies = new Currency();
-                $item = $currencies->find($item)->getArray();
-                $inline_keys[] = [
-                    [
-                        'text' => $item['NAME'],
-                        "callback_data" => 'SetCurrencyToApp_' . $app->getId()."_".$item['ID']
-                    ]
-                ];
+                if(!in_array($item, $currencies_)) {
+                    $currencies = new Currency();
+                    $item = $currencies->find($item)->getArray();
+                    $inline_keys[] = [
+                        [
+                            'text' => $item['NAME'],
+                            "callback_data" => 'SetCurrencyToApp_' . $app->getId() . "_" . $item['ID']
+                        ]
+                    ];
+                }
             }
+            $inline_keys[] = [
+                [
+                    'text' => "Сброс заявки",
+                    "callback_data" => 'ResetRespApp_' . $app->getId()
+                ]
+            ];
+            $inline_keys[] = [
+                [
+                    'text' => "В черновик",
+                    "callback_data" => 'SetToDraftApp_' . $app->getId()
+                ]
+            ];
             $response['buttons'] = json_encode([
                 'resize_keyboard' => true,
                 'inline_keyboard' => $inline_keys
@@ -218,6 +342,26 @@ class Markup
         ]);
         return $response;
     }
+    public static function getRespAddComentInCreateMarkup($app_id): array
+    {
+        $response['message'] = "Введите <b>Комментарий к заявке</b>  (Шаг можно пропустить)";
+        $response['buttons'] = json_encode([
+            'resize_keyboard' => true,
+            'inline_keyboard' => [
+                [
+                    [
+                        'text' => 'Пропустить шаг',
+                        "callback_data" => "NotSetRespCommentAdd_".$app_id
+                    ],
+                    [
+                        'text' => "Отменить создание",
+                        "callback_data" => "CancelCreateApp_".$app_id
+                    ]
+                ]
+            ]
+        ]);
+        return $response;
+    }
     public static function getRespCompleteAppMarkup($text): array
     {
         $response['message']= "Заявка оформлена\n\n";
@@ -251,32 +395,27 @@ class Markup
         }
         return $response;
     }
-    public static function getRespCashRoomListMarkupInProcess($text, $id): array
+    public static function getRespCashRoomListMarkupInProcess($id): array
     {
-        $response['message'] = $text;
-        $response['message'] = '';
         $cash_room_list = [];
         $cash_rooms = new CashRoom();
         $applications = new Applications();
         $app = $applications->find($id);
         $list = $cash_rooms->where('ACTIVE', 'Y')->select(['ID', 'NAME'])->get()->getArray();
-        if($app->isPayment()){
-            if(!$app->hasBeforeApps()) {
-                $response['message'].= "Шаг №3. \nВыберите <b>Кассу</b>";
-            } else {
-                $response['message'].= "Шаг №2. \nВыберите <b>Кассу</b>";
-            }
-        }
-        $response['message'].= "\nИнформация по кассам:\n";
+        $response['message'] = "Выберите <b>Кассу</b>";
         if (ArrayHelper::checkFullArray($list)) {
             foreach ($list as $cash_room) {
-                $response['message'] .= CREMarkup::getCashRoomInfoMarkup($cash_room['ID']);
+                //$response['message'] .= CREMarkup::getCashRoomInfoMarkup($cash_room['ID']);
                 $cash_room_list[] = [
                     'text' => $cash_room['NAME'],
                     "callback_data" => "setCashRoomToApp_".$app->getId().'_'.$cash_room['ID']
                 ];
             }
         }
+        $cash_room_list[] = [
+            'text' => "Отменить создание",
+            "callback_data" => "CancelCreateApp_".$id
+        ];
         $response['buttons'] = json_encode([
             'resize_keyboard' => true,
             'inline_keyboard' => [$cash_room_list]
@@ -368,6 +507,18 @@ class Markup
                 $response['message'].= "\n\nДоступных к привязке заявок нет";
             }
         }
+        $app_list[] = [
+            [
+                'text' => 'Сброс заявки',
+                "callback_data" => "ResetRespApp_".$id
+            ]
+        ];
+        $app_list[] = [
+            [
+                'text' => 'В черновик',
+                "callback_data" => "SetToDraftApp_".$id
+            ]
+        ];
         $response['buttons'] = json_encode(['inline_keyboard' => $app_list]);
         return $response;
     }
@@ -420,6 +571,18 @@ class Markup
                 $response['message'].= "\n\nДоступных к привязке заявок нет";
             }
         }
+        $app_list[] = [
+            [
+                'text' => "Сброс заявки",
+                "callback_data" => 'ResetRespApp_' . $id
+            ]
+        ];
+        $app_list[] = [
+            [
+                'text' => 'В черновик',
+                "callback_data" => "SetToDraftApp_".$id
+            ]
+        ];
         $response['buttons'] = json_encode(['inline_keyboard' => $app_list]);
         return $response;
     }
@@ -434,7 +597,7 @@ class Markup
                     $text.=$application['PROPERTY_OPERATION_TYPE_VALUE'] . ". ";
                 $inline_keyboard[] = [
                     [
-                        "text" => '№'.$application['ID'].'. '.$text . $application['PROPERTY_STATUS_VALUE'] . '. Создана ' . $application['CREATED_DATE'],
+                        "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                         "callback_data" => "showApplicationForResponse_" . $application['ID']
                     ]
                 ];
@@ -444,6 +607,70 @@ class Markup
             $buttons = json_encode($keyboard);
         } else {
             $message = 'Заявок пока нет';
+        }
+    }
+
+    /** Шаг №1 ввод имени */
+    public static function getAgentNameMarkup($app_id)
+    {
+        $response['message'] = "Введите <b>Имя контрагента</b> в учете";
+        $response['buttons']  = json_encode([
+            'resize_keyboard' => true,
+            'inline_keyboard' => [
+                [
+                    [
+                        'text' => "Отменить создание",
+                        "callback_data" => "CancelCreateApp_".$app_id
+                    ],
+                ]
+            ]
+        ]);
+        return $response;
+    }
+
+    /** Шаг №2 ввод типа данных Выдача/Забор */
+    public static function getOperationTypeMarkup($id)
+    {
+        $response['message'] = "Выберите <b>Тип операции</b> (Выдача/Забор)";
+        $response['buttons'] = json_encode([
+            'resize_keyboard' => true,
+            'inline_keyboard' => [
+                [
+                    [
+                        'text' => 'Выдача',
+                        "callback_data" => "setOperationTypeToApp_".$id.'_8'
+                    ],
+
+                    [
+                        'text' => 'Забор',
+                        "callback_data" => "setOperationTypeToApp_".$id.'_7'
+                    ],
+                    [
+                        'text' => "Отменить создание",
+                        "callback_data" => "CancelCreateApp_".$id
+                    ],
+
+                ]
+            ]
+        ]);
+        return $response;
+    }
+    public static function getCreateAppMarkup($id)
+    {
+        $app = (new Applications())->find($id);
+        switch ($app->getField('DRAFT_STEP')){
+            case 0:
+                return self::getAgentNameMarkup($id);
+                break;
+            case 1:
+                return self::getOperationTypeMarkup($id);
+                break;
+            case 2:
+                return self::getRespCashRoomListMarkupInProcess($id);
+                break;
+            case 3:
+                return self::getRespAddComentInCreateMarkup($id);
+                break;
         }
     }
 }

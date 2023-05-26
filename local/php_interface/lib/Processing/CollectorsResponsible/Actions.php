@@ -17,6 +17,12 @@ class Actions
             'keyboard' => [
                 [
                     [
+                        'text' => "Архив"
+                    ],
+                    [
+                        'text' => "Заявки экипажей"
+                    ],
+                    [
                         'text' => "Заявки в работу"
                     ],
                     [
@@ -36,10 +42,52 @@ class Actions
         } else {
             switch ($data['text']) {
                 //запрос списка заявок
+                case "Архив":
+                    $inline_keyboard[] = [
+                        [
+                            "text" => "Заявки за сегодня",
+                            "callback_data" => "todayApps_10_1"
+                        ]
+                    ];
+                    $inline_keyboard[] = [
+                        [
+                            "text" => "Заявки за вчера",
+                            "callback_data" => "yesterdayApps_10_1"
+                        ]
+                    ];
+                    $inline_keyboard[] = [
+                        [
+                            "text" => "Заявки за неделю",
+                            "callback_data" => "weekApps_10_1"
+                        ]
+                    ];
+                    $message = "Меню архива заявок";
+                    $keyboard = array("inline_keyboard" => $inline_keyboard);
+                    $buttons = json_encode($keyboard);
+                    break;
+                case "Заявки экипажей":
+                    $applications = new Applications();
+                    $list = $applications->getCrewAppsForCollResp();
+                    if (ArrayHelper::checkFullArray($list)) {
+                        $inline_keyboard = [];
+                        foreach ($list as $application) {
+                            $inline_keyboard[] = [
+                                [
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
+                                    "callback_data" => "showCollectorsApplicationForResponse_" . $application['ID']
+                                ]
+                            ];
+                        }
+                        $message = 'Выберите заявку из списка для просмотра или управления';
+                        $keyboard = array("inline_keyboard" => $inline_keyboard);
+                        $buttons = json_encode($keyboard);
+                    } else {
+                        $message = 'Действующих заявок пока нет';
+                    }
+                    break;
                 case "Заявки в работу":
                     $applications = new Applications();
                     $list = $applications->getToWorkAppsForCollResp();
-                    //$list = $applications->getAppsForCollResp();
                     if (ArrayHelper::checkFullArray($list)) {
                         $inline_keyboard = [];
                         foreach ($list as $application) {
@@ -48,7 +96,7 @@ class Actions
                                 $text.=$application['PROPERTY_OPERATION_TYPE_VALUE'] . ". ";
                             $inline_keyboard[] = [
                                 [
-                                    "text" => '№'.$application['ID'].'. '.$text . $application['PROPERTY_STATUS_VALUE'] . '. Создана ' . $application['CREATED_DATE'],
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                                     "callback_data" => "showApplicationForResponse_" . $application['ID']
                                 ]
                             ];
@@ -71,7 +119,7 @@ class Actions
                                 $text.=$application['PROPERTY_OPERATION_TYPE_VALUE'] . ". ";
                             $inline_keyboard[] = [
                                 [
-                                    "text" => '№'.$application['ID'].'. '.$text . $application['PROPERTY_STATUS_VALUE'] . '. Создана ' . $application['CREATED_DATE'],
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                                     "callback_data" => "showApplicationForResponse_" . $application['ID']
                                 ]
                             ];
@@ -87,32 +135,9 @@ class Actions
                 case '/start':
                     $employee->setChatID($data['chat']['id']);
                     $message = 'Здравствуйте. Управляйте заявками из меню ниже';
-                    /*$buttons = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => Common::getButtonText('resp_apps_list_new')
-                                ],
-                                [
-                                    'text' => "Заявки в работу"
-                                ]
-                            ]
-                        ]
-                    ]);*/
                     break;
                 //другие текстовые данные
                 default:
-                    $buttons = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => Common::getButtonText('resp_apps_list_new')
-                                ]
-                            ]
-                        ]
-                    ]);
                     $applications = new Applications();
                     //если заявка в стадии черновик
                     if ($applications->getNeedCancelByCollRespId() > 0){
@@ -121,8 +146,8 @@ class Actions
                         if ($response['buttons'])
                             $buttons = $response['buttons'];
                         //заполнение данных в заявке
-                    } elseif ($applications->getInProcessByCollResp() > 0) {
-                        $response = $applications->setFieldToInProcess($applications->getInProcessByCollResp(), $data['text']);
+                    } elseif (Common::DuringAppByCollResponsible()>0) {
+                        $response = $applications->setFieldToInProcess(Common::DuringAppByCollResponsible(), $data['text']);
                         $message = $response['message'];
                         if ($response['buttons'])
                             $buttons = $response['buttons'];

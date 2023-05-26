@@ -27,6 +27,7 @@ abstract class ElementModel {
     {
         self::includeIblockModule();
         $this->filter['IBLOCK_ID'] = self::getIBlockId();
+        $this->filter['ACTIVE'] = "Y";
     }
 
     public function getField($field)
@@ -61,7 +62,7 @@ abstract class ElementModel {
 
     public function filter($filter): ElementModel
     {
-        $this->filter = array_merge($filter, ['IBLOCK_ID' => self::getIBlockId()]);
+        $this->filter = array_merge($filter, $this->filter);
         return $this;
     }
 
@@ -200,12 +201,14 @@ abstract class ElementModel {
         return $id;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getId()
+    public function getId():int
     {
-        return $this->id;
+        return (int)$this->id;
+    }
+
+    public function getIblock()
+    {
+        return static::IBLOCK_ID;
     }
 
     /**

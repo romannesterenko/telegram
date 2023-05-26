@@ -8,9 +8,11 @@ use Helpers\ArrayHelper;
 use Helpers\LogHelper;
 use Helpers\StringHelper;
 use Models\Applications;
+use Models\CashRoom;
 use Models\CashRoomDay;
 use Models\Currency;
 use Models\Order;
+use Models\Staff;
 use Processing\Responsible\Markup as RespMarkup;
 use Settings\Common;
 
@@ -34,7 +36,6 @@ class Buttons
                     }
                 }
                 break;
-
             case 'ResetCloseDay':
                 if((int)$array_data[1]>0){
                     $days = new CashRoomDay();
@@ -46,10 +47,48 @@ class Buttons
                         $day->resetSumStep();
                         $day->resetEndCurrencies();
                         $day->removeNeedApprove();
+                        Common::resetCloseDaySession();
                         $message = 'Закрытие смены отменено';
                     } else {
                         $message = Common::getWrongAppActionText();
                     }
+                }
+                break;
+            case 'ResetCloseDays':
+                $cash_rooms = (new CashRoom())->get()->getArray();
+                $need_reset = false;
+                $a = [33];
+                foreach ($cash_rooms as $cash_room){
+                    $crd = (new CashRoomDay())
+                        ->where('PROPERTY_CASH_ROOM', $cash_room['ID'])
+                        ->where('>DATE_CREATE', date('d.m.Y 00:00:01'))
+                        ->where('<DATE_CREATE', date('d.m.Y 23:59:59'))
+                        ->first()->getArray();
+                    if(!$need_reset&&in_array($crd['PROPERTY_STATUS_ENUM_ID'], $a)){
+
+                        $need_reset = true;
+                    }
+                }
+                if($need_reset){
+                    foreach ($cash_rooms as $cash_room) {
+                        $crd = (new CashRoomDay())
+                            ->where('PROPERTY_CASH_ROOM', $cash_room['ID'])
+                            ->where('>DATE_CREATE', date('d.m.Y 00:00:01'))
+                            ->where('<DATE_CREATE', date('d.m.Y 23:59:59'))
+                            ->first()->getArray();
+
+                        $day = (new CashRoomDay())->find($crd['ID']);
+                        $day->setStatus(32);
+                        $day->resetCountAttempts();
+                        $day->resetEndSums();
+                        $day->resetSumStep();
+                        $day->resetEndCurrencies();
+                        $day->removeNeedApprove();
+
+                    }
+                    Common::resetCloseDaySession();
+                    $message = 'Закрытие смен отменено';
+                    $response['buttons'] = self::getCommonButtons();
                 }
                 break;
             case 'showApplicationForCRE':
@@ -57,23 +96,72 @@ class Buttons
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1]);
                     if ($app->isPayment()) {
-                        if($app->isPayBack()){
-                            $message = "Заявка №" . $app->getId() . "\nВозврат средств от контрагента ".$app->getField('AGENT_OFF_NAME');
-                            $inline_keys = [];
-                            $inline_keys[] = [
-                                [
-                                    'text' => 'Получить деньги (Указание валюты и суммы)',
-                                    "callback_data" => 'GivePayBackMoney_' . $app->getId()
-                                ]
-                            ];
-                            $response['buttons'] = json_encode([
-                                'resize_keyboard' => true,
-                                'inline_keyboard' => $inline_keys
-                            ]);
+                        if($app->isPayBack()||$app->getStatus()==54){
+                            if($app->getStatus()==54) {
+                                if(Common::getCREGiveMoneySession()>0){
+                                    $message = "Невозможно! Вы уже работаете с заявкой на выдачу №".Common::getCREGiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                                } elseif(Common::getCREReceiveMoneySession()>0){
+                                    $message = "Невозможно! Вы уже работаете с заявкой на забор №".Common::getCREReceiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                                } elseif (Common::getCREReceivePaybackMoneySession()>0&&Common::getCREReceivePaybackMoneySession()!=$app->getId()){
+                                    $message = "Невозможно! Вы уже работаете с возвратом заявки №".Common::getCREReceivePaybackMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                                } else {
+                                    $cash = $app->getCash();
+                                    if (count($cash) == 1) {
+                                        $currencies = new Currency();
+                                        $currencies_array = $app->getCurrencies();
+                                        $currency = $currencies->find($currencies_array[0]);
+                                        $message = 'Введите привезенную сумму в ' . $currency->getGenitive();
+                                        $inline_keys[] = [
+                                            [
+                                                'text' => "Сброс заявки",
+                                                "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                            ]
+                                        ];
+
+                                        $response['buttons'] = json_encode([
+                                            'resize_keyboard' => true,
+                                            'inline_keyboard' => $inline_keys
+                                        ]);
+                                    } else {
+                                        $currencies = new Currency();
+                                        $currencies_array = $app->getCurrencies();
+                                        if (ArrayHelper::checkFullArray($currencies_array)) {
+                                            $app->setField('PAYBACK_SUM_ENTER_STEP', 0);
+                                            $currency = $currencies->find($currencies_array[0]);
+                                            $message = 'Введите привезенную сумму в ' . $currency->getGenitive();
+                                            $inline_keys[] = [
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                                ]
+                                            ];
+
+                                            $response['buttons'] = json_encode([
+                                                'resize_keyboard' => true,
+                                                'inline_keyboard' => $inline_keys
+                                            ]);
+                                        }
+                                    }
+                                }
+                            }else{
+                                $message = "Заявка №" . $app->getId() . "\nВозврат средств от контрагента " . $app->getField('AGENT_OFF_NAME');
+                                $inline_keys = [];
+                                $inline_keys[] = [
+                                    [
+                                        'text' => 'Получить деньги (Указание валюты и суммы)',
+                                        "callback_data" => 'GivePayBackMoney_' . $app->getId()
+                                    ]
+                                ];
+                                $response['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => $inline_keys
+                                ]);
+                            }
                         } else {
-                            $message = "Заявка №" . $app->getId() . "\nВыдать <b>" . $app->crew()->getName()."</b> для контрагента <b>".$app->getField('AGENT_OFF_NAME')."</b>";
+                            $message = "Заявка №" . $app->getId() . " (".$app->cash_room()->getName().")\nВыдать из <b>".$app->cash_room()->getName()."</b>, экипажу <b>" . $app->crew()->getName()."</b> для контрагента <b>".$app->getField('AGENT_OFF_NAME')."</b>";
                             $sums = $app->getField("SUMM");
                             $app_currencies = $app->getField("CURRENCY");
+                            $app_cash = $app->getCash();
                             if(ArrayHelper::checkFullArray($sums)&&ArrayHelper::checkFullArray($app_currencies)){
                                 foreach ($sums as $id => $sum){
                                     $currencies = new Currency();
@@ -89,6 +177,11 @@ class Buttons
                                             break;
                                         }
                                     }
+                                    $app_sums = $app->getField('SUMM');
+                                    $app_real_sums = $app->getField('REAL_SUM');
+                                    if(ArrayHelper::checkFullArray($app_cash)&&count($app_real_sums)>0&&(count($app_sums)!=count($app_real_sums))){
+                                        $message.= "\nВыдана сумма - ".implode(', ', $app_cash);
+                                    }
                                     if($allow_app){
                                         if(count($app_currencies)==1){
                                             $sum = $sums[0];
@@ -100,7 +193,7 @@ class Buttons
                                             if ($sum % 100 != 0) {
                                                 $not_need_round = false;
                                             }
-                                            if ($sum % 1000 != 0) {
+                                            if ($sum>=1000&&$sum % 1000 != 0) {
                                                 $not_need_round = false;
                                             }
                                             if ($not_need_round) {
@@ -135,7 +228,7 @@ class Buttons
                                                         ]
                                                     ];
                                                 }
-                                                if ($sum % 1000 != 0) {
+                                                if ($sum>=1000&&$sum % 1000 != 0) {
                                                     $ss = round($sum, -3);
                                                     $inline_keys[] = [
                                                         [
@@ -145,6 +238,12 @@ class Buttons
                                                     ];
                                                 }
                                             }
+                                            $inline_keys[] = [
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetCREApp_' . $app->getId()
+                                                ]
+                                            ];
                                             $response['buttons'] = json_encode([
                                                 'resize_keyboard' => true,
                                                 'inline_keyboard' => $inline_keys
@@ -170,7 +269,7 @@ class Buttons
                                             if ($sum % 100 != 0) {
                                                 $not_need_round = false;
                                             }
-                                            if ($sum % 1000 != 0) {
+                                            if ($sum>=1000&&$sum % 1000 != 0) {
                                                 $not_need_round = false;
                                             }
                                             if ($not_need_round) {
@@ -205,7 +304,7 @@ class Buttons
                                                         ]
                                                     ];
                                                 }
-                                                if ($sum % 1000 != 0) {
+                                                if ($sum>=1000&&$sum % 1000 != 0) {
                                                     $ss = round($sum, -3);
                                                     $inline_keys[] = [
                                                         [
@@ -215,6 +314,12 @@ class Buttons
                                                     ];
                                                 }
                                             }
+                                            $inline_keys[] = [
+                                                [
+                                                    'text' => "Сброс заявки",
+                                                    "callback_data" => 'ResetCREApp_' . $app->getId()
+                                                ]
+                                            ];
                                             $response['buttons'] = json_encode([
                                                 'resize_keyboard' => true,
                                                 'inline_keyboard' => $inline_keys
@@ -224,96 +329,9 @@ class Buttons
                                 }
                             }
 
-
-
-
-
-                            //if($app->getSum())
-                            /*$inline_keys = [];
-                            $not_need_round = true;
-                            if ($app->getSum() % 50 != 0) {
-                                $not_need_round = false;
-                            }
-                            if ($app->getSum() % 100 != 0) {
-                                $not_need_round = false;
-                            }
-                            if ($app->getSum() % 1000 != 0) {
-                                $not_need_round = false;
-                            }
-
-                            if ($not_need_round) {
-                                $inline_keys[] = [
-                                    [
-                                        'text' => 'Выдать деньги',
-                                        "callback_data" => 'CREGiveAsIs_' . $app->getId()
-                                    ]
-                                ];
-                            } else {
-                                $inline_keys[] = [
-                                    [
-                                        'text' => 'Выдать как есть (' . number_format($app->getSum(), 0, ',', ' ') . ')',
-                                        "callback_data" => 'CREGiveAsIs_' . $app->getId()
-                                    ]
-                                ];
-                                if ($app->getSum() % 50 != 0) {
-                                    $inline_keys[] = [
-                                        [
-                                            'text' => 'Округлить до 50 (' . number_format(50 * round($app->getSum() / 50), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveRound50_' . $app->getId()
-                                        ]
-                                    ];
-                                }
-                                if ($app->getSum() % 100 != 0) {
-                                    $inline_keys[] = [
-                                        [
-                                            'text' => 'Округлить до 100 (' . number_format(round($app->getSum(), -2), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveRound100_' . $app->getId()
-                                        ]
-                                    ];
-                                }
-                                if ($app->getSum() % 1000 != 0) {
-                                    $inline_keys[] = [
-                                        [
-                                            'text' => 'Округлить до 1000 (' . number_format(round($app->getSum(), -3), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveRound1000_' . $app->getId()
-                                        ]
-                                    ];
-                                }
-                            }*/
-                            /*$response['buttons'] = json_encode([
-                                'resize_keyboard' => true,
-                                'inline_keyboard' => $inline_keys*/
-                                /*'inline_keyboard' => [
-                                    [
-                                        [
-                                            'text' => 'Выдать как есть (' . number_format($app->getSum(), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveAsIs_' . $app->getId()
-                                        ]
-                                    ],
-                                    [
-                                        [
-                                            'text' => 'Округлить до 50 (' . number_format(50 * round($app->getSum() / 50), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveRound50_' . $app->getId()
-                                        ]
-                                    ],
-                                    [
-                                        [
-                                            'text' => 'Округлить до 100 (' . number_format(round($app->getSum(), -2), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveRound100_' . $app->getId()
-                                        ]
-                                    ],
-                                    [
-                                        [
-                                            'text' => 'Округлить до 1000 (' . number_format(round($app->getSum(), -3), 0, ',', ' ') . ')',
-                                            "callback_data" => 'CREGiveRound1000_' . $app->getId()
-                                        ]
-                                    ],
-                                ]*/
-                            //]);
-
                         }
                     } else {
-                        $message = "Заявка №" . $app->getId() . "\nПолучить деньги от <b>" . $app->crew()->getName() . "</b>";
+                        $message = "Заявка №" . $app->getId() . " (".$app->cash_room()->getName().")\nПолучить деньги в <b>".$app->cash_room()->getName()."</b> от <b>" . $app->crew()->getName() . "</b>";
                         $response['buttons'] = json_encode([
                             'resize_keyboard' => true,
                             'inline_keyboard' => [
@@ -332,26 +350,116 @@ class Buttons
                 if ((int)$array_data[1]>0&&(int)$array_data[2]>0) {
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1]);
-                    if ($app->getStatus()==23) {
-                        $array = self::processRealSum($app, $array_data);
-                        $message = $array['message'];
-                        if($array['buttons'])
-                            $response['buttons'] = $array['buttons'];
-                    } else {
-                        $message = Common::getWrongAppActionText();
-                    }
+
+                        if ($app->getStatus() == 23) {
+                            $array = self::processRealSum($app, $array_data);
+                            $message = $array['message'];
+                            if ($array['buttons'])
+                                $response['buttons'] = $array['buttons'];
+                        } else {
+                            $message = Common::getWrongAppActionText();
+                        }
+
                 }
                 break;
             case 'CREReceiveSum':
                 if((int)$array_data[1]>0){
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1]);
-                    //if($app->getStatus()==20) {
-                    if($app->getStatus()==26||$app->getStatus()==20) {
-                        $app->setStatus(26);
-                        $app->setField('SUM_ENTER_STEP', 1);
-                        $message = 'Выберите валюту';
+                    if(Common::getCloseDaySession()>0){
+                        $message = "Невозможно! Вы закрываете смену.";
+                    } elseif(Common::getCREGiveMoneySession()>0){
+                        $message = "Невозможно! Вы уже работаете с заявкой на выдачу №".Common::getCREGiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } elseif (Common::getCREReceivePaybackMoneySession()>0){
+                        $message = "Невозможно! Вы уже работаете с возвратом заявки №".Common::getCREReceivePaybackMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } elseif(Common::getCREReceiveMoneySession()>0&&Common::getCREReceiveMoneySession()!=(int)$array_data[1]){
+                        $message = "Невозможно! Вы уже работаете с заявкой на забор №".Common::getCREReceiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } else {
+                        if ($app->getStatus() == 26 || $app->getStatus() == 20) {
+                            $app->setStatus(26);
+                            Common::setCREReceiveMoneySession((int)$array_data[1]);
+                            $sums = $app->getCash();
+                            if($app->getField('SUM_ENTER_STEP')==0) {
+                                if (ArrayHelper::checkFullArray($sums)) {
+                                    $message = 'Уже введенные суммы - ' . implode(', ', $sums);
+                                    $message .= "\nВыберите валюту";
+                                } else {
+                                    $message = 'Выберите валюту';
+                                }
 
+                                $list = $app->cash_room()->getCurrencies();
+                                $exists_currencies = $app->getCurrencies();
+                                $inline_keys = [];
+                                foreach ($list as $item) {
+                                    if(in_array($item, $exists_currencies))
+                                        continue;
+                                    $currencies = new Currency();
+                                    $item = $currencies->find($item)->getArray();
+                                    $inline_keys[] = [
+                                        [
+                                            'text' => $item['NAME'],
+                                            "callback_data" => 'SetCurrencyToApp_' . $app->getId() . "_" . $item['ID']
+                                        ]
+                                    ];
+                                }
+                                if(!ArrayHelper::checkFullArray($inline_keys)){
+                                    $message = 'Уже введенные суммы - ' . implode(', ', $sums);
+                                    $message .= "\nВсе доступные валюты выбраны и введены, закройте заявку или сбросьте её заполнение";
+                                    $inline_keys[] = [
+                                        [
+                                            'text' => 'Закрыть заявку',
+                                            "callback_data" => "CRECompleteReceiveSum_".$app->getId()
+                                        ]
+                                    ];
+                                }
+                                $inline_keys[] = [
+                                    [
+                                        'text' => "Сброс заявки",
+                                        "callback_data" => 'ResetCREApp_' . $app->getId()
+                                    ]
+                                ];
+
+                                $response['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => $inline_keys
+                                ]);
+                            } else {
+                                $currencies = $app->getCurrencies();
+                                $sums = $app->getSum();
+                                $diff = array_diff(array_keys($currencies), array_keys($sums));
+                                $currency = (new Currency())->find($currencies[current($diff)]);
+                                if (ArrayHelper::checkFullArray($app->getCash())) {
+                                    $message = 'Уже введенные суммы - ' . implode(', ', $app->getCash());
+                                    $message .= "\nВведите сумму в ".$currency->getGenitive();
+                                } else {
+                                    $message = 'Введите сумму в '.$currency->getGenitive();
+                                }
+                                $inline_keys[] = [
+                                    [
+                                        'text' => "Сброс заявки",
+                                        "callback_data" => 'ResetCREApp_' . $app->getId()
+                                    ]
+                                ];
+
+                                $response['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => $inline_keys
+                                ]);
+                            }
+                        } else {
+                            $message = Common::getWrongAppActionText();
+                        }
+                    }
+                }
+                break;
+            case 'CorrectPrevSum':
+                if((int)$array_data[1]>0){
+                    $app = (new Applications())->find((int)$array_data[1]);
+                    if($app->getStatus()==26||$app->getStatus()==20) {
+                        $app->removeLastSum();
+                        $app->setStatus(26);
+                        $app->setField('SUM_ENTER_STEP', 0);
+                        $message = 'Выберите валюту';
                         $list = $app->cash_room()->getCurrencies();
                         $inline_keys = [];
                         foreach ($list as $item) {
@@ -377,27 +485,33 @@ class Buttons
                 if((int)$array_data[1]>0){
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1]);
-                    if($app->getStatus()==26) {
-                        $order = new Order();
-                        $order->createFromAppID($app->getId());
-                        $app->setComplete();
-                        $markup['message'] = "Заявка №" . (int)$app->getId();
-                        $markup['message'].= "\nОт контрагента ".$app->getField("AGENT_OFF_NAME")." поступили деньги: ";
-                        $cash = $app->getCash();
-                        if(ArrayHelper::checkFullArray($cash))
-                            $markup['message'].= implode(', ', $cash);
-                        Telegram::sendMessageToManager($markup, (int)$app->getId());
-                        $contact_message = "По заявке №".$app->getId()." от вас получена сумма ".implode(', ', $cash);
-                        $message = "Заявка выполнена";
-                        $response['buttons'] = Buttons::getCommonButtons();
-                        try {
-                            \Api\Sender::send($app, $contact_message);
-                        } catch (Exception $exception) {
+                    if((int)$array_data[1]==Common::getCREReceiveMoneySession()) {
+                        if ($app->getStatus() == 26) {
+                            $order = new Order();
+                            $order->createFromAppID($app->getId());
+                            $app->setComplete();
+                            $markup['message'] = "Заявка №" . (int)$app->getId();
+                            $markup['message'] .= "\nОт контрагента " . $app->getField("AGENT_OFF_NAME") . " поступили деньги: ";
+                            $cash = $app->getCash();
+                            if (ArrayHelper::checkFullArray($cash))
+                                $markup['message'] .= implode(', ', $cash);
+                            Telegram::sendMessageToManager($markup, (int)$app->getId());
+                            if($app->manager()->getId()!=(new Staff())->getResp()->getId())
+                                Telegram::sendMessageToResp($markup['message']);
+                            $contact_message = "По заявке №" . $app->getId() . " от вас получена сумма " . implode(', ', $cash);
+                            $message = "Заявка выполнена";
+                            $response['buttons'] = Buttons::getCommonButtons();
+                            try {
+                                \Api\Sender::send($app, $contact_message);
+                            } catch (Exception $exception) {
 
+                            }
+                            Common::resetCREReceiveMoneySession();
+                        } else {
+                            $message = Common::getWrongAppActionText();
                         }
-
                     } else {
-                        $message = Common::getWrongAppActionText();
+                        $message = "Невозможно! Вы уже работаете с заявкой №".Common::getCREReceiveMoneySession();
                     }
                 }
                 break;
@@ -447,23 +561,54 @@ class Buttons
                 if((int)$array_data[1]>0) {
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1]);
-                    if($app->getStatus()!=52){
-                        $message = Common::getWrongAppActionText();
+                    if(Common::getCloseDaySession()>0){
+                        $message = "Невозможно! Вы закрываете смену.";
+                    } elseif(Common::getCREGiveMoneySession()>0){
+                        $message = "Невозможно! Вы уже работаете с заявкой на выдачу №".Common::getCREGiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+                    } elseif(Common::getCREReceiveMoneySession()>0){
+                        $message = "Невозможно! Вы уже работаете с заявкой на забор №".Common::getCREReceiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
                     } else {
-                        $app->setStatus(54);
-                        $cash = $app->getCash();
-                        if (count($cash) == 1) {
-                            $currencies = new Currency();
-                            $currencies_array = $app->getCurrencies();
-                            $currency = $currencies->find($currencies_array[0]);
-                            $message = 'Введите привезенную сумму в ' . $currency->getGenitive();
+                        if ($app->getStatus() != 52) {
+                            $message = Common::getWrongAppActionText();
                         } else {
-                            $currencies = new Currency();
-                            $currencies_array = $app->getCurrencies();
-                            if (ArrayHelper::checkFullArray($currencies_array)) {
-                                $app->setField('PAYBACK_SUM_ENTER_STEP', 0);
+                            $app->setStatus(54);
+                            Common::setCREReceivePaybackMoneySession($app->getId());
+                            $cash = $app->getCash();
+                            if (count($cash) == 1) {
+                                $currencies = new Currency();
+                                $currencies_array = $app->getCurrencies();
                                 $currency = $currencies->find($currencies_array[0]);
                                 $message = 'Введите привезенную сумму в ' . $currency->getGenitive();
+                                $inline_keys[] = [
+                                    [
+                                        'text' => "Сброс заявки",
+                                        "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                    ]
+                                ];
+
+                                $response['buttons'] = json_encode([
+                                    'resize_keyboard' => true,
+                                    'inline_keyboard' => $inline_keys
+                                ]);
+                            } else {
+                                $currencies = new Currency();
+                                $currencies_array = $app->getCurrencies();
+                                if (ArrayHelper::checkFullArray($currencies_array)) {
+                                    $app->setField('PAYBACK_SUM_ENTER_STEP', 0);
+                                    $currency = $currencies->find($currencies_array[0]);
+                                    $message = 'Введите привезенную сумму в ' . $currency->getGenitive();
+                                    $inline_keys[] = [
+                                        [
+                                            'text' => "Сброс заявки",
+                                            "callback_data" => 'ResetPaybackCREApp_' . $app->getId()
+                                        ]
+                                    ];
+
+                                    $response['buttons'] = json_encode([
+                                        'resize_keyboard' => true,
+                                        'inline_keyboard' => $inline_keys
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -473,7 +618,7 @@ class Buttons
                 if((int)$array_data[1]>0&&(int)$array_data[2]>0) {
                     $apps = new Applications();
                     $app = $apps->find((int)$array_data[1]);
-                    if($app->getField('SUM_ENTER_STEP')!=1){
+                    if($app->getField('SUM_ENTER_STEP')!=0){
                         $message = Common::getWrongAppActionText();
                     } else {
                         $app->setCurrency((int)$array_data[2]);
@@ -481,6 +626,52 @@ class Buttons
                         $currencies = new Currency();
                         $currency = $currencies->find((int)$array_data[2]);
                         $message = 'Введите привезенную сумму в валюте ' . $currency->getName();
+                        $inline_keys[] = [
+                            [
+                                'text' => "Сброс заявки",
+                                "callback_data" => 'ResetCREApp_' . $app->getId()
+                            ]
+                        ];
+
+                        $response['buttons'] = json_encode([
+                            'resize_keyboard' => true,
+                            'inline_keyboard' => $inline_keys
+                        ]);
+                    }
+                }
+                break;
+            case 'ResetCREApp':
+                if((int)$array_data[1]>0) {
+                    $app = (new Applications())->find((int)$array_data[1]);
+                    if($app->isPayment()){
+                        Common::resetCREGiveMoneySession();
+                        $app->setStatus(23);
+                        $app->resetField('REAL_SUM');
+                        $orders = $app->order();
+                        if(ArrayHelper::checkFullArray($orders)){
+                            foreach ($orders as $order){
+                                $ord_obj = new Order();
+                                $ord_obj->find($order)->reset();
+                            }
+                        }
+                        $message = "Заявка ".$app->getFullName()." была сброшена и возвращена в раздел 'Выдача'";
+                    } else {
+                        Common::resetCREReceiveMoneySession();
+                        $app->resetField('SUMM');
+                        $app->resetField('CURRENCY');
+                        $app->resetField('SUM_ENTER_STEP');
+                        $app->setStatus(20);
+                        $message = "Заявка ".$app->getFullName()." была сброшена и возвращена в раздел 'Забор'";
+                    }
+                }
+                break;
+            case 'ResetPaybackCREApp':
+                if((int)$array_data[1]>0) {
+                    $app = (new Applications())->find((int)$array_data[1]);
+                    Common::resetCREReceivePaybackMoneySession();
+                    if($app->getStatus()==54) {
+                        $app->setStatus(52);
+                        $message = "Заявка ".$app->getFullName()." была сброшена и возвращена в раздел 'Выдача'";
                     }
                 }
                 break;
@@ -496,7 +687,7 @@ class Buttons
         if ($sum % 100 != 0) {
             $not_need_round = false;
         }
-        if ($sum % 1000 != 0) {
+        if ($sum>=1000&&$sum % 1000 != 0) {
             $not_need_round = false;
         }
         if ($not_need_round) {
@@ -531,7 +722,7 @@ class Buttons
                     ]
                 ];
             }
-            if ($sum % 1000 != 0) {
+            if ($sum>=1000&&$sum % 1000 != 0) {
                 $ss = round($sum, -3);
                 $inline_keys[] = [
                     [
@@ -548,25 +739,18 @@ class Buttons
         return $response['buttons'];
     }
 
-    public static function getCommonButtons()
+    public static function getCommonButtons(): string
     {
         $buttons_array = [];
         $cashRoomDays = new CashRoomDay();
+        if(!Common::getCloseDaySession()>0) {
+            $buttons_array[] = ['text' => Common::getButtonText('cre_apps_list_payment') . " (" . count((new Applications())->getPaymentsAppsForCRE()) . ")"];
+            $buttons_array[] = ['text' => Common::getButtonText('cre_apps_list_receive') . " (" . count((new Applications())->getRecieveAppsForCRE()) . ")"];
+        }
 
-        $applications = new Applications();
-        $list = $applications->getPaymentsAppsForCRE();
-        //if (ArrayHelper::checkFullArray($list)) {
-            $buttons_array[] = ['text' => Common::getButtonText('cre_apps_list_payment')." (".count($list).")"];
-        //}
-
-        $applications = new Applications();
-        $list = $applications->getRecieveAppsForCRE();
-        //if (ArrayHelper::checkFullArray($list)) {
-            $buttons_array[] = ['text' => Common::getButtonText('cre_apps_list_receive')." (".count($list).")"];
-        //}
 
         $open_today_array = $cashRoomDays->getOpenToday();
-        if(ArrayHelper::checkFullArray($open_today_array)){
+        if(ArrayHelper::checkFullArray($open_today_array)||Common::getCloseDaySession()>0){
             $buttons_array[] = ['text' => Common::getButtonText('cre_end_work_day')];
             return json_encode([
                 'resize_keyboard' => true,
@@ -590,61 +774,71 @@ class Buttons
 
     private static function processRealSum(Applications $app, array $array_data)
     {
-        $app->setRealSumMultiple((int)$array_data[2]);
-        //$message = "По  Выдана сумма в размере <b>" . number_format((int)$array_data[2], 0, ',', ' ') . "</b> экипажу <b>".$app->crew()->getName()."</b> согласно заявки №".$app->getId();
-        $message = "По заявке №".$app->getId()." выдана сумма";
-        $response['buttons'] = self::getCommonButtons();
-        $apps_ = new Applications();
-        $temp_app = $apps_->find((int)$array_data[1]);
-        $app_sums = $temp_app->getField('SUMM');
-        $app_real_sums = $temp_app->getField('REAL_SUM');
-        $app_currencies = $temp_app->getField('CURRENCY');
-        $index = count($app_real_sums)-1;
-        $setted_currency = $app_currencies[$index];
-        $orders = new Order();
-        $order = $orders->where('PROPERTY_APP', (int)$array_data[1])->where('PROPERTY_CURRENCY', $setted_currency)->first();
-        $order->setRealSum((int)$array_data[2]);
-        $order->setInDelivery();
-        if(count($app_sums)>1){
-            if (count($app_sums) != count($app_real_sums)) {
-                foreach ($app_sums as $i => $app_sum) {
-                    if (empty($app_real_sums[$i])) {
-                        $this_cur_id = $app_currencies[$i];
-                        $this_curr_object = new Currency();
-                        $this_cur = $this_curr_object->find($this_cur_id);
-                        $message .= "\n\nВведите сумму в размере " . StringHelper::formatSum($app_sum) . " ".$this_cur->getField('CODE')." в валюте " . $this_cur->getName();
-                        $response['buttons'] = self::drawButtons($app_sum, $app->getId(), $this_cur->getField('CODE'));
-                        break;
+        if(Common::getCREReceiveMoneySession()>0){
+            $message = "Невозможно! Вы уже работаете с заявкой на забор №".Common::getCREReceiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+        } elseif (Common::getCREReceivePaybackMoneySession()>0){
+            $message = "Невозможно! Вы уже работаете с возвратом заявки №".Common::getCREReceivePaybackMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+        } elseif (Common::getCREGiveMoneySession()>0&&Common::getCREGiveMoneySession()!=(int)$array_data[1]){
+            $message = "Невозможно! Вы уже работаете с заявкой на выдачу №".Common::getCREGiveMoneySession().".\nЗакончите её оформление или сбросьте для работы с остальными заявками";
+        } else {
+            $app->setRealSumMultiple((int)$array_data[2]);
+            Common::setCREGiveMoneySession((int)$array_data[1]);
+            $message = "По заявке №" . $app->getId() . " выдана сумма " . implode(', ', (new Applications())->find($app->getId())->getCash());
+            $response['buttons'] = self::getCommonButtons();
+            $apps_ = new Applications();
+            $temp_app = $apps_->find((int)$array_data[1]);
+            $app_sums = $temp_app->getField('SUMM');
+            $app_real_sums = $temp_app->getField('REAL_SUM');
+            $app_currencies = $temp_app->getField('CURRENCY');
+            $index = count($app_real_sums) - 1;
+            $setted_currency = $app_currencies[$index];
+            $orders = new Order();
+            $order = $orders->where('PROPERTY_APP', (int)$array_data[1])->where('PROPERTY_CURRENCY', $setted_currency)->first();
+            $order->setRealSum((int)$array_data[2]);
+            $order->setInDelivery();
+            if (count($app_sums) > 1) {
+                if (count($app_sums) != count($app_real_sums)) {
+                    foreach ($app_sums as $i => $app_sum) {
+                        if (empty($app_real_sums[$i])) {
+                            $this_cur_id = $app_currencies[$i];
+                            $this_curr_object = new Currency();
+                            $this_cur = $this_curr_object->find($this_cur_id);
+                            $message .= "\n\nВведите сумму в размере " . StringHelper::formatSum($app_sum) . " " . $this_cur->getField('CODE') . " в валюте " . $this_cur->getName();
+                            $response['buttons'] = self::drawButtons($app_sum, $app->getId(), $this_cur->getField('CODE'));
+                            break;
+                        }
                     }
+                } else {
+                    $app->setStatus(20);
+                    $cash = $app->getCash();
+                    Common::resetCREGiveMoneySession();
+                    $message_to_man = "Заявка №" . $app->getId() . ". Контрагент - " . $app->getField('AGENT_OFF_NAME') . ". Передано в доставку " . implode(', ', $cash);
+                    Telegram::sendMessageToManagerByAppID($app->getId(), $message_to_man);
+                    $message_to_client = "Заявка №" . $app->getId() . ". Передано в доставку " . implode(', ', $cash) . ". Время - " . $app->getTime();
+                    try {
+                        Sender::send($app, $message_to_client);
+                    } catch (\Exception $e) {
+
+                    }
+                    $to_channel = "Выдал " . $app->getField('AGENT_OFF_NAME') . " " . implode(', ', $cash);
+                    Mattermost::send($to_channel, $app->cash_room()->getMatterMostChannel());
+
                 }
             } else {
                 $app->setStatus(20);
                 $cash = $app->getCash();
-                $message_to_man = "Заявка №".$app->getId().". Контрагент - ".$app->getField('AGENT_OFF_NAME').". Передано в доставку ".implode(', ', $cash);
-                Telegram::sendCommonMessageToManager($message_to_man);
-                $message_to_client = "Заявка №".$app->getId().". Передано в доставку ".implode(', ', $cash).". Время - ".$app->getTime();
+                Common::resetCREGiveMoneySession();
+                $message_to_man = "Заявка №" . $app->getId() . ". Контрагент - " . $app->getField('AGENT_OFF_NAME') . ". Передано в доставку " . implode(', ', $cash);
+                Telegram::sendMessageToManagerByAppID($app->getId(), $message_to_man);
+                $message_to_client = "Заявка №" . $app->getId() . ". Передано в доставку " . implode(', ', $cash) . ". Время - " . $app->getTime();
                 try {
                     Sender::send($app, $message_to_client);
-                } catch (\Exception $e){
+                } catch (\Exception $e) {
 
                 }
-                $to_channel = "Выдал ".$app->getField('AGENT_OFF_NAME')." ".implode(', ', $cash);
-                Mattermost::send($to_channel);
-
+                $to_channel = "Выдал " . $app->getField('AGENT_OFF_NAME') . " " . implode(', ', $cash);
+                Mattermost::send($to_channel, $app->cash_room()->getMatterMostChannel());
             }
-        } else {
-            $app->setStatus(20);
-            $cash = $app->getCash();
-            $message_to_man = "Заявка №".$app->getId().". Контрагент - ".$app->getField('AGENT_OFF_NAME').". Передано в доставку ".implode(', ', $cash);
-            Telegram::sendCommonMessageToManager($message_to_man);
-            $message_to_client = "Заявка №".$app->getId().". Передано в доставку ".implode(', ', $cash).". Время - ".$app->getTime();
-            try {
-                Sender::send($app, $message_to_client);
-            } catch (\Exception $e){
-
-            }
-            $to_channel = "Выдал ".$app->getField('AGENT_OFF_NAME')." ".implode(', ', $cash);
-            Mattermost::send($to_channel);
         }
         return ['message' => $message, 'buttons' => $response['buttons']];
     }

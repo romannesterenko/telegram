@@ -6,6 +6,7 @@ use Helpers\LogHelper;
 use Models\Applications;
 use Models\Operation;
 use Processing\Manager\Buttons as ManagerButtons;
+use Processing\Responsible\Markup as RespMarkup;
 use Settings\Common;
 
 class Actions
@@ -14,65 +15,65 @@ class Actions
     {
         $send_photo = false;
         $send_document = false;
+        $buttons_array = [];
+        if($employee->getField('TG_LOGIN')==Common::GetAllowCashRoomEmployee()){
+            $buttons_array[] = [
+                'text' => "Инфо по кассам"
+            ];
+        }
+        $buttons_array[] = [
+            'text' => "Операции"
+        ];
+        $buttons_array[] = [
+            'text' => \Settings\Common::getButtonText('manager_app_list')
+        ];
+        $buttons_array[] = [
+            'text' => \Settings\Common::getButtonText('manager_new_app'),
+        ];
+
         $buttons = json_encode([
             'resize_keyboard' => true,
             'keyboard' => [
-                [
-                    [
-                        'text' => "Операции"
-                    ],
-                    [
-                        'text' => \Settings\Common::getButtonText('manager_app_list')
-                    ],
-                    [
-                        'text' => \Settings\Common::getButtonText('manager_new_app')
-                    ],
-                ]
+
+                $buttons_array
+
             ]
         ]);
         if( $is_callback ){
             $data['chat']['id'] = $data['message']['chat']['id'];
             if( !empty( $data['data'] ) ){
-                if($data['data']=='createOperation')
-                    $data['data']='createOperation_'.$data['chat']['id'];
+                /*if($data['data']=='createOperation')
+                    $data['data']='createOperation_'.$data['chat']['id'];*/
                 $response = ManagerButtons::process($data['data']);
                 $message = $response['message'];
-                if ($response['buttons'])
+                if (!empty($response['buttons']))
                     $buttons = $response['buttons'];
-                if ($response['send_photo']) {
+                if (!empty($response['send_photo'])) {
                     $photo = $response['photo'];
                     $send_photo = true;
                 }
             }
         } else {
             switch ( $data['text'] ) {
+                case "Инфо по кассам":
+                    if($employee->getField('TG_LOGIN')==Common::GetAllowCashRoomEmployee()){
+                        $response = RespMarkup::getRespCashRoomListMarkup();
+                        $message = $response['message'];
+                    } else {
+                        $message = 'К сожалению, вы ввели неизвестную мне команду :/';
+                    }
+                    break;
                 case "Операции":
-                    $buttons = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => "Операции"
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
                     $inline_keyboard[] = [
                         [
                             "text" => "Создание операции",
-                            "callback_data" => "createOperation"
+                            "callback_data" => "createOperation_".$employee->getId()
                         ]
                     ];
                     $inline_keyboard[] = [
                         [
                             "text" => "Список операций",
-                            "callback_data" => "operationList_10_1"
+                            "callback_data" => "operationList_10_1_".$employee->getId()
                         ]
                     ];
                     $inline_keyboard[] = [
@@ -89,22 +90,6 @@ class Actions
                 case \Settings\Common::getButtonText('manager_app_list'):
                     $applications = new Applications();
                     $list = $applications->getByManager((int)$employee->getField('ID'));
-                    $buttons = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => "Операции"
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
                     if (ArrayHelper::checkFullArray($list)) {
                         $inline_keyboard = [];
                         foreach ($list as $application) {
@@ -113,7 +98,7 @@ class Actions
                                 $text.=$application['PROPERTY_OPERATION_TYPE_VALUE'] . ". ";
                             $inline_keyboard[] = [
                                 [
-                                    "text" => '№'.$application['ID'].'. '.$text . $application['PROPERTY_STATUS_VALUE'] . '. Создана ' . $application['CREATED_DATE'],
+                                    "text" => $application['PROPERTY_AGENT_OFF_NAME_VALUE'].'. '.$application['PROPERTY_OPERATION_TYPE_VALUE'].' №'.$application['ID'],
                                     "callback_data" => "showApplicationForManager_" . $application['ID']
                                 ]
                             ];
@@ -139,25 +124,14 @@ class Actions
                     break;
                 //отмена создания
                 case \Settings\Common::getButtonText('manager_cancel_new_app'):
-                    $applications = new Applications();
-                    $applications->removeDrafted((int)$employee->getField('ID'));
-                    $message = "Создание заявки отменено";
-                    $buttons = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => "Операции"
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
+                    if($employee->getCreatingApp()>0){
+                        Applications::delete($employee->getCreatingApp());
+                        $employee->resetCreateAppSession();
+                        $message = "Создание заявки отменено";
+                    } else {
+                        $message = 'Заявка на удаление не найдена';
+                    }
+
                     break;
                 //отказ от продолжения оформления и переход к созданию новой
                 case \Settings\Common::getButtonText('manager_cancel_restore_app'):
@@ -165,59 +139,63 @@ class Actions
                     $applications->removeDrafted((int)$employee->getField('ID'));
                 //оформление новой заявки
                 case \Settings\Common::getButtonText('manager_new_app'):
-                    $applications = new Applications();
-                    if ($applications->getDrartedByManager((int)$employee->getField('ID')) > 0) {
-                        $message = "У вас есть недооформленная заявка №".$applications->getDrartedByManager((int)$employee->getField('ID'))."\n\n";
-                        $message.=$applications->prepareAppDataMessage($applications->getDrartedByManager((int)$employee->getField('ID')));
-                        $message.= "\nВы хотите продолжить ее оформление? При нажатии кнопки 'Оформление новой заявки' существующая заявка удалится и откроется Мастер создания новой заявки";
-                        $buttons = json_encode([
-                            'inline_keyboard' => [
-                                [
-                                    [
-                                        'text' => \Settings\Common::getButtonText('manager_restore_app'),
-                                        "callback_data" => "restoreDraftedApp_".(int)$employee->getField('ID')
-                                    ],
-
-                                    [
-                                        'text' => \Settings\Common::getButtonText('manager_cancel_restore_app'),
-                                        "callback_data" => "startNewApp_".(int)$employee->getField('ID')
-                                    ],
-                                ]
-                            ]
-                        ]);
+                    if(!Common::isAllowToCreateApps()){
+                        $message = "Создание заявок после ".Common::getTimeForApps()." запрещено";
                     } else {
-                        $applications->createNewDraft((int)$employee->getField('ID'));
-                        $markup = Markup::getAgentNameMarkup();
-                        $message = $markup['message'];
-                        $buttons = $markup['buttons'];
+                        if ($employee->hasSessions()) {
+                            if ($employee->getCreatingApp() > 0) {
+                                $message = "У вас есть недооформленная заявка №" . $employee->getCreatingApp() . "\n\n";
+                                $message .= (new Applications())->prepareAppDataMessage($employee->getCreatingApp());
+                                $message .= "\nВы хотите продолжить ее оформление или отменить?";
+                                $buttons = json_encode([
+                                    'inline_keyboard' => [
+                                        [
+                                            [
+                                                'text' => \Settings\Common::getButtonText('manager_restore_app'),
+                                                "callback_data" => "restoreDraftedApp_" . $employee->getCreatingApp()
+                                            ],
+
+                                            [
+                                                'text' => "Отменить создание",
+                                                "callback_data" => "cancelCreatingApp_" . $employee->getCreatingApp()
+                                            ],
+                                        ]
+                                    ]
+                                ]);
+                            } elseif ($employee->getCreatingOperation() > 0) {
+                                $message = "У вас есть недооформленная операция. Закончите её создание, затем создавайте заявку\n\n";
+                            } elseif ($employee->isStartedSearchSession()) {
+                                $message = "Запущен процесс поиска. Введите поисковую фразу или отмените поиск, затем создавайте заявку\n\n";
+                                $buttons = json_encode([
+                                    'inline_keyboard' => [
+                                        [
+                                            [
+                                                'text' => "Отменить поиск",
+                                                "callback_data" => "resetSearch_" . $employee->getId()
+                                            ]
+                                        ]
+                                    ]
+                                ]);
+                            }
+                        } else {
+                            $app_id = (new Applications())->createNewDraft((int)$employee->getField('ID'));
+                            $employee->startCreateAppSession($app_id);
+                            $markup = Markup::getAgentNameMarkup($app_id);
+                            $message = $markup['message'];
+                            $buttons = $markup['buttons'];
+                        }
                     }
                     break;
                 //успешная авторизация в приложении команда /start
                 case '/start':
                     $employee->setChatID($data['chat']['id']);
                     $message = Common::getHelloCommonMessage();
-                    $buttons = json_encode([
-                        'resize_keyboard' => true,
-                        'keyboard' => [
-                            [
-                                [
-                                    'text' => "Операции"
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_app_list')
-                                ],
-                                [
-                                    'text' => \Settings\Common::getButtonText('manager_new_app')
-                                ],
-                            ]
-                        ]
-                    ]);
                     break;
                 //другие текстовые данные
                 default:
                     $applications = new Applications();
                     $operations = new Operation();
-                    if(Option::get('main', 'search_'.(int)$employee->getField('ID'))=='Y'){
+                    if($employee->isStartedSearchSession()){
                         $message = 'Результаты поиска по запросу "'.$data['text'].'"'."\n";
                         $list = $operations->filter([
                             'PROPERTY_STATUS' => 59,
@@ -241,18 +219,17 @@ class Actions
                             if($operation['PROPERTY_COMENT_VALUE'])
                                 $message .= "Комментарий - ".$operation['PROPERTY_COMENT_VALUE']."\n";
                         }
-                        Option::set('main', 'search_'.(int)$employee->getField('ID'), 'N');
-
+                        $employee->closeSearchSession();
                     }
-                    elseif($operations->getDrafted((int)$employee->getField('ID'))->getId()>0){
-                        $response = $operations->setFieldToDraft((int)$employee->getField('ID'), $data);
+                    elseif($employee->getCreatingOperation()>0){
+                        $response = $operations->setFieldToDraft($employee->getCreatingOperation(), $data);
                         $message = $response['message'];
                         if ($response['buttons'])
                             $buttons = $response['buttons'];
                     }
                     //если заявка в стадии черновик
-                    elseif ($applications->getDrartedByManager((int)$employee->getField('ID')) > 0) {
-                        $response = $applications->setFieldToDraft((int)$employee->getField('ID'), $data['text']);
+                    elseif ($employee->getCreatingApp()>0) {
+                        $response = $applications->setFieldToDraft($employee->getCreatingApp(), $data['text']);
                         $message = $response['message'];
                         if ($response['buttons'])
                             $buttons = $response['buttons'];
@@ -270,8 +247,9 @@ class Actions
         }
         if ($send_photo) {
             return ["chat_id" => $data['chat']['id'], "caption" => $message, 'parse_mode' => 'HTML', 'reply_markup' => $buttons, 'photo' => $photo];
-        }else
+        } else {
             return ["chat_id" => $data['chat']['id'], "text" => $message, 'parse_mode' => 'HTML', 'reply_markup' => $buttons];
+        }
 
     }
 }

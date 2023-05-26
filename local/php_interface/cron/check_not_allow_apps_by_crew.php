@@ -37,6 +37,7 @@ if ($minutes>0){
             if (ArrayHelper::checkFullArray($apps)) {
                 foreach ($apps as $application) {
                     if ($application['ID'] > 0) {
+                        $crew_list = [];
                         $app = $applications->find($application['ID']);
                         $template = Common::get('text_to_remind_for_crew');
                         $vars = [

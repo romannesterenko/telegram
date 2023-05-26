@@ -50,7 +50,7 @@ class CashRoom extends Model {
         } else {
             $closed_crds = new CashRoomDay();
             $crdo = $closed_crds->getLastClosedFromCashRoom($this->getField('ID'));
-            $start_cash = $crdo->getField('START_SUM');
+            $start_cash = $crdo->getField('END_SUM');
         }
         $start_cash_array = [];
         foreach ($start_cash as $i => $c){
@@ -172,5 +172,15 @@ class CashRoom extends Model {
     public function getCurencies()
     {
         return $this->getField('CURRENCY');
+    }
+
+    public function getMatterMostChannel()
+    {
+        return $this->getField('MM_CHANNEL');
+    }
+
+    public function getMatterMostOperationChannel()
+    {
+        return $this->getField('MM_OPERATION_CHANNEL');
     }
 }
